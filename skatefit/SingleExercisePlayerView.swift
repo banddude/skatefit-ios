@@ -7,6 +7,7 @@ struct SingleExercisePlayerView: View {
     let difficulty: WorkoutDifficulty
     
     @Environment(\.dismiss) var dismiss
+    @State private var showExerciseDetails = false
     
     var body: some View {
         ZStack {
@@ -54,6 +55,7 @@ struct SingleExercisePlayerView: View {
                 
                 Spacer()
             }
+            .allowsHitTesting(false) // Prevent text overlays from blocking tap gestures
             
             // Bottom UI with description and reps
             VStack {
@@ -99,6 +101,23 @@ struct SingleExercisePlayerView: View {
                     .ignoresSafeArea(.all)
                 )
             }
+            .allowsHitTesting(false) // Prevent bottom UI from blocking tap gestures
+            
+            // Invisible tap overlay to capture tap gestures
+            Color.clear
+                .ignoresSafeArea(.all)
+                .onTapGesture {
+                    print("🎯 Tap detected! Toggling exercise details")
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showExerciseDetails.toggle()
+                    }
+                    print("📋 Exercise details now: \(showExerciseDetails)")
+                }
+            
+            // Exercise Details Overlay
+            if showExerciseDetails {
+                exerciseDetailsOverlay
+            }
         }
         .navigationTitle(exercise.move)
         .navigationBarTitleDisplayMode(.inline)
@@ -117,12 +136,155 @@ struct SingleExercisePlayerView: View {
                     .shadow(radius: 0)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    dismiss()
+                HStack {
+                    // Debug button - remove in production
+                    Button("Info") {
+                        print("🔘 Debug button pressed")
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showExerciseDetails.toggle()
+                        }
+                    }
+                    .foregroundColor(.white)
+                    
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }
         .navigationBarBackButtonHidden(true)
+    }
+    
+    // MARK: - Exercise Details Overlay
+    private var exerciseDetailsOverlay: some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.8)
+                .ignoresSafeArea(.all)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showExerciseDetails = false
+                    }
+                }
+            
+            // Details card
+            VStack(spacing: 20) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(exercise.section)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                        
+                        Text(exercise.move)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showExerciseDetails = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.bottom, 10)
+                
+                Divider()
+                
+                // Exercise details content
+                VStack(alignment: .leading, spacing: 16) {
+                    // Description
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Description")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text(exercise.description)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    // Instructions for current difficulty
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Instructions (\(difficulty.displayName))")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        HStack {
+                            Image(systemName: "figure.strengthtraining.traditional")
+                                .font(.body)
+                                .foregroundColor(difficulty.color)
+                            
+                            Text(exercise.instructions(for: difficulty))
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(difficulty.color.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    // All difficulty levels
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("All Difficulty Levels")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        VStack(spacing: 6) {
+                            difficultyRow(level: .beginner, instructions: exercise.beginner)
+                            difficultyRow(level: .intermediate, instructions: exercise.intermediate)
+                            difficultyRow(level: .advanced, instructions: exercise.advanced)
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.systemBackground))
+                    .shadow(color: .black.opacity(0.3), radius: 20)
+            )
+            .padding(20)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+    
+    private func difficultyRow(level: WorkoutDifficulty, instructions: String) -> some View {
+        HStack {
+            Circle()
+                .fill(level.color)
+                .frame(width: 8, height: 8)
+            
+            Text(level.displayName)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(level == difficulty ? level.color : .secondary)
+                .frame(width: 80, alignment: .leading)
+            
+            Text(instructions)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(level == difficulty ? level.color.opacity(0.1) : Color.clear)
+        .cornerRadius(6)
     }
     
     private func sectionColor(_ section: String) -> Color {

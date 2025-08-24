@@ -10,6 +10,7 @@ struct WorkoutPlayerView: View {
     
     @Environment(\.dismiss) var dismiss
     @State private var currentExerciseIndex: Int
+    @State private var showExerciseDetails = false
     
     init(workoutName: String, difficulty: WorkoutDifficulty, exercises: [WorkoutExercise], startingIndex: Int) {
         self.workoutName = workoutName
@@ -29,7 +30,8 @@ struct WorkoutPlayerView: View {
                         exercise: exercises[index],
                         difficulty: difficulty,
                         index: index,
-                        total: exercises.count
+                        total: exercises.count,
+                        showExerciseDetails: $showExerciseDetails
                     )
                     .tag(index)
                     .onAppear {
@@ -69,7 +71,7 @@ struct WorkoutPlayerView: View {
                     
                     Spacer()
                     
-                    // Done button (same styling as SingleExercisePlayerView)
+                    // Done button
                     Button("Done") {
                         dismiss()
                     }
@@ -89,6 +91,11 @@ struct WorkoutPlayerView: View {
                 
                 Spacer()
             }
+            
+            // Exercise Details Overlay
+            if showExerciseDetails && currentExerciseIndex < exercises.count {
+                exerciseDetailsOverlay(for: exercises[currentExerciseIndex])
+            }
         }
         .gesture(
             DragGesture()
@@ -99,6 +106,100 @@ struct WorkoutPlayerView: View {
                     }
                 }
         )
+    }
+    
+    // MARK: - Exercise Details Overlay
+    private func exerciseDetailsOverlay(for exercise: WorkoutExercise) -> some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.8)
+                .ignoresSafeArea(.all)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showExerciseDetails = false
+                    }
+                }
+            
+            // Details card
+            VStack(spacing: 20) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(exercise.section)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                        
+                        Text(exercise.move)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showExerciseDetails = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.bottom, 10)
+                
+                Divider()
+                
+                // Exercise details content
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Description
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Description")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text(exercise.description)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        
+                        // Instructions for current difficulty
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Instructions (\(difficulty.displayName))")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            HStack {
+                                Image(systemName: "figure.strengthtraining.traditional")
+                                    .font(.body)
+                                    .foregroundColor(difficulty.color)
+                                
+                                Text(exercise.instructions(for: difficulty))
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(difficulty.color.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                }
+            }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.systemBackground))
+                    .shadow(color: .black.opacity(0.3), radius: 20)
+            )
+            .padding(20)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
     
     private func sectionColor(_ section: String) -> Color {
@@ -117,6 +218,7 @@ struct SingleExercisePageView: View {
     let difficulty: WorkoutDifficulty
     let index: Int
     let total: Int
+    @Binding var showExerciseDetails: Bool
     
     var body: some View {
         ZStack {
@@ -126,8 +228,22 @@ struct SingleExercisePageView: View {
                     WorkoutVideoPlayerView(player: AVPlayer(url: videoURL))
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            print("🎯 Long press detected directly on video!")
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                showExerciseDetails.toggle()
+                            }
+                            print("📋 Exercise details now: \(showExerciseDetails)")
+                        }
                 } else {
                     Color.black
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            print("🎯 Long press detected on black placeholder!")
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                showExerciseDetails.toggle()
+                            }
+                            print("📋 Exercise details now: \(showExerciseDetails)")
+                        }
                 }
             }
             .ignoresSafeArea(.all)
@@ -206,6 +322,8 @@ struct SingleExercisePageView: View {
                     )
                 )
             }
+            
+            
         }
     }
 }

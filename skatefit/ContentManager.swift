@@ -2,9 +2,8 @@ import Foundation
 import SwiftUI
 import Combine
 
-@MainActor
 class ContentManager: ObservableObject {
-    nonisolated static let shared = ContentManager()
+    static let shared = ContentManager()
     
     @Published var isInitializing = false
     @Published var initializationError: String?
@@ -15,79 +14,75 @@ class ContentManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var updateCheckTimer: Timer?
     
-    nonisolated private init() {
+    private init() {
         self.gitHubContentService = GitHubContentService.shared
         self.cancellables = Set<AnyCancellable>()
         
-        Task { @MainActor in
-            setupBindings()
-            schedulePeriodicUpdates()
-        }
+        setupBindings()
+        schedulePeriodicUpdates()
     }
     
     // MARK: - Public Methods
     
     /// Initialize content on app startup
     func initializeContent() async {
-        guard !isInitializing else { return }
-        
-        isInitializing = true
-        initializationError = nil
+        await MainActor.run {
+            guard !isInitializing else { return }
+            isInitializing = true
+            initializationError = nil
+        }
         
         do {
             // First try to load from GitHub (cached or fresh)
-            workoutContainers = try await gitHubContentService.loadWorkouts()
+            let containers = try await gitHubContentService.loadWorkouts()
             
             // Check for updates in background
             await gitHubContentService.checkForUpdates()
             
-            print("Content initialized successfully with \(workoutContainers.count) workouts")
+            await MainActor.run {
+                workoutContainers = containers
+            }
+            
+            print("Content initialized successfully with \(containers.count) workouts")
             
         } catch {
-            initializationError = "Failed to load workout content from GitHub: \(error.localizedDescription)"
+            await MainActor.run {
+                initializationError = "Failed to load workout content from GitHub: \(error.localizedDescription)"
+            }
             print("Failed to load workouts from GitHub: \(error)")
         }
         
-        isInitializing = false
+        await MainActor.run {
+            isInitializing = false
+        }
     }
     
     /// Force refresh content from GitHub
     func refreshContent() async {
         // Prevent multiple simultaneous refreshes
-        guard !isInitializing else { return }
-        
-        isInitializing = true
-        initializationError = nil
+        await MainActor.run {
+            guard !isInitializing else { return }
+            isInitializing = true
+            initializationError = nil
+        }
         
         do {
             // Force clear ALL cache and reset version tracking
             gitHubContentService.clearCache()
             
             // Clear current workouts to ensure fresh state
-            workoutContainers = []
+            await MainActor.run {
+                workoutContainers = []
+            }
             
             // Download fresh workouts directly (bypassing cache check) with retry logic
-            var freshWorkouts: [WorkoutContainer] = []
-            var attempt = 0
-            let maxAttempts = 3
-            
-            repeat {
-                attempt += 1
-                do {
-                    freshWorkouts = try await gitHubContentService.downloadAndCacheWorkouts()
-                    break
-                } catch {
-                    if attempt == maxAttempts {
-                        throw error
-                    }
-                    print("Refresh attempt \(attempt) failed, retrying...")
-                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                }
-            } while attempt < maxAttempts
+            let freshWorkouts = try await downloadWorkoutsWithRetry()
             
             // Update the workouts array with fresh data
-            workoutContainers = freshWorkouts
-            contentUpdateAvailable = false
+            await MainActor.run {
+                workoutContainers = freshWorkouts
+                contentUpdateAvailable = false
+            }
             
             // Download any new videos that aren't cached
             downloadAllVideos()
@@ -95,10 +90,14 @@ class ContentManager: ObservableObject {
             print("Content refreshed successfully with \(freshWorkouts.count) workouts")
         } catch {
             print("Failed to refresh content: \(error)")
-            initializationError = "Failed to refresh content: \(error.localizedDescription)"
+            await MainActor.run {
+                initializationError = "Failed to refresh content: \(error.localizedDescription)"
+            }
         }
         
-        isInitializing = false
+        await MainActor.run {
+            isInitializing = false
+        }
     }
     
     /// Download ALL videos for seamless offline experience
@@ -130,6 +129,27 @@ class ContentManager: ObservableObject {
     }
     
     // MARK: - Private Methods
+    
+    private func downloadWorkoutsWithRetry() async throws -> [WorkoutContainer] {
+        var attempt = 0
+        let maxAttempts = 3
+        
+        repeat {
+            attempt += 1
+            do {
+                return try await gitHubContentService.downloadAndCacheWorkouts()
+            } catch {
+                if attempt == maxAttempts {
+                    throw error
+                }
+                print("Refresh attempt \(attempt) failed, retrying...")
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+            }
+        } while attempt < maxAttempts
+        
+        // This should never be reached due to the throw above, but Swift requires it
+        fatalError("Unexpected code path in downloadWorkoutsWithRetry")
+    }
     
     private func setupBindings() {
         // Listen to GitHub service update availability

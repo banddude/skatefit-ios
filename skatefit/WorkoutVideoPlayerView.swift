@@ -20,6 +20,9 @@ struct WorkoutVideoPlayerView: UIViewRepresentable {
         // Store reference to player layer for updates
         context.coordinator.playerLayer = playerLayer
         
+        // Configure audio session to allow background music
+        configureAudioSession()
+        
         // Configure for smooth gif-like playback
         player.isMuted = true // Silent for gif-like experience
         player.automaticallyWaitsToMinimizeStalling = false
@@ -54,5 +57,15 @@ struct WorkoutVideoPlayerView: UIViewRepresentable {
     
     class Coordinator {
         var playerLayer: AVPlayerLayer?
+    }
+    
+    private func configureAudioSession() {
+        do {
+            // Set audio session category to allow mixing with other audio
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to configure audio session: \(error)")
+        }
     }
 }
