@@ -83,7 +83,7 @@ class GitHubContentService: ObservableObject {
         let downloadURL = buildVideoDownloadURL(fileName: videoFileName)
         print("Downloading video: \(downloadURL)")
         
-        let (data, response) = try await URLSession.shared.data(from: downloadURL)
+        let (data, _) = try await URLSession.shared.data(from: downloadURL)
         
         // Check if this is an LFS pointer file
         if let dataString = String(data: data, encoding: .utf8),
