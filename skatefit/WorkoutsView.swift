@@ -2,12 +2,10 @@ import SwiftUI
 
 struct WorkoutsView: View {
     @StateObject private var viewModel = WorkoutsViewModel()
+    @EnvironmentObject var contentManager: ContentManager
     @State private var showOnboarding = false
 
     let columns = [GridItem(.adaptive(minimum: 300), spacing: 15)]
-    
-    // Load workouts from JSON
-    @State private var workoutContainers: [WorkoutContainer] = []
 
     var body: some View {
         NavigationView {
@@ -31,15 +29,68 @@ struct WorkoutsView: View {
                     }
                     .padding(.horizontal)
                     
+                    // Update available indicator
+                    if contentManager.contentUpdateAvailable {
+                        Button(action: {
+                            Task {
+                                await contentManager.refreshContent()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Content update available - Tap to refresh")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accentColor.opacity(0.1))
+                            .cornerRadius(16)
+                        }
+                        .padding(.horizontal)
+                    }
+                    
                     // Main Content Area
-                    if workoutContainers.isEmpty {
-                        ProgressView()
+                    if contentManager.workoutContainers.isEmpty {
+                        if contentManager.isInitializing {
+                            VStack(spacing: 8) {
+                                ProgressView()
+                                Text("Loading workouts from GitHub...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 50)
+                        } else if let error = contentManager.initializationError {
+                            VStack(spacing: 12) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.orange)
+                                Text("Unable to load workouts")
+                                    .font(.headline)
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button("Retry") {
+                                    Task {
+                                        await contentManager.initializeContent()
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 50)
+                        } else {
+                            Text("No workouts available")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 50)
+                        }
                     } else {
                         // Workouts Grid - Show difficulty options
                         VStack(alignment: .leading, spacing: 20) {
-                            ForEach(workoutContainers) { workout in
+                            ForEach(contentManager.workoutContainers) { workout in
                                 WorkoutDifficultyCard(workout: workout)
                             }
                         }
@@ -55,28 +106,9 @@ struct WorkoutsView: View {
                  // Dismiss keyboard on tap outside
                  hideKeyboard()
              }
-            .onAppear {
-                loadWorkouts()
-            }
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView()
             }
-        }
-    }
-    
-    private func loadWorkouts() {
-        guard let url = Bundle.main.url(forResource: "workouts", withExtension: "json") else {
-            print("Error: workouts.json not found in bundle.")
-            return
-        }
-        
-        do {
-            let data = try Data(contentsOf: url)
-            let containers = try JSONDecoder().decode([WorkoutContainer].self, from: data)
-            workoutContainers = containers
-            print("Successfully loaded \(containers.count) workouts")
-        } catch {
-            print("Error decoding workouts.json: \(error)")
         }
     }
 }

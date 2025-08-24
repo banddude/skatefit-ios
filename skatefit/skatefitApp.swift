@@ -11,6 +11,7 @@ import SwiftUI
 struct skatefitApp: App {
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var onboardingManager = OnboardingManager.shared
+    @StateObject private var contentManager = ContentManager.shared
     @State private var isShowingSplash = true
     @State private var showOnboarding = false
     
@@ -21,13 +22,21 @@ struct skatefitApp: App {
                     .environmentObject(themeManager)
                     .preferredColorScheme(themeManager.colorScheme)
                     .onAppear {
-                        // Hide splash screen after 2 seconds, then check onboarding
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            withAnimation {
-                                self.isShowingSplash = false
-                                // Show onboarding if not completed
-                                if !onboardingManager.isOnboardingCompleted {
-                                    self.showOnboarding = true
+                        // Initialize content and hide splash screen
+                        Task {
+                            await contentManager.initializeContent()
+                            
+                            // Preload essential videos in background
+                            contentManager.preloadEssentialVideos()
+                            
+                            // Hide splash screen after content is ready (or after 3 seconds max)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                withAnimation {
+                                    self.isShowingSplash = false
+                                    // Show onboarding if not completed
+                                    if !onboardingManager.isOnboardingCompleted {
+                                        self.showOnboarding = true
+                                    }
                                 }
                             }
                         }
@@ -35,6 +44,7 @@ struct skatefitApp: App {
             } else {
                 MainTabView()
                     .environmentObject(themeManager)
+                    .environmentObject(contentManager)
                     .preferredColorScheme(themeManager.colorScheme)
                     .fullScreenCover(isPresented: $showOnboarding) {
                         OnboardingView()
