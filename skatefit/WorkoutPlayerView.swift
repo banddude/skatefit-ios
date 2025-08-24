@@ -155,9 +155,9 @@ struct WorkoutPlayerView: View {
                 // Exercise details content
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Description
+                        // Brief Description
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Description")
+                            Text("Overview")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
@@ -165,6 +165,24 @@ struct WorkoutPlayerView: View {
                                 .font(.body)
                                 .foregroundColor(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
+                        }
+                        
+                        // Detailed Description (if available)
+                        if let detailedDescription = exercise.detailedDescription, !detailedDescription.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Detailed Guide")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Text(detailedDescription)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(Color(UIColor.secondarySystemBackground))
+                                    .cornerRadius(10)
+                            }
                         }
                         
                         // Instructions for current difficulty

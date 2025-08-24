@@ -127,6 +127,7 @@ struct WorkoutExercise: Identifiable, Codable {
     var section: String
     var move: String
     var description: String
+    var detailedDescription: String?
     var jsonFile: String
     var videoFile: String? // Video file name (without extension)
     var beginner: String
@@ -135,6 +136,7 @@ struct WorkoutExercise: Identifiable, Codable {
     
     enum CodingKeys: String, CodingKey {
         case section, move, description
+        case detailedDescription = "detailed_description"
         case jsonFile = "json_file"
         case videoFile = "video_file"
         case beginner, intermediate, advanced

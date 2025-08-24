@@ -200,51 +200,71 @@ struct SingleExercisePlayerView: View {
                 Divider()
                 
                 // Exercise details content
-                VStack(alignment: .leading, spacing: 16) {
-                    // Description
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Text(exercise.description)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    
-                    // Instructions for current difficulty
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Instructions (\(difficulty.displayName))")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        HStack {
-                            Image(systemName: "figure.strengthtraining.traditional")
-                                .font(.body)
-                                .foregroundColor(difficulty.color)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Brief Description
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Overview")
+                                .font(.headline)
+                                .foregroundColor(.primary)
                             
-                            Text(exercise.instructions(for: difficulty))
+                            Text(exercise.description)
                                 .font(.body)
                                 .foregroundColor(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(difficulty.color.opacity(0.1))
-                        .cornerRadius(8)
-                    }
-                    
-                    // All difficulty levels
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("All Difficulty Levels")
-                            .font(.headline)
-                            .foregroundColor(.primary)
                         
-                        VStack(spacing: 6) {
-                            difficultyRow(level: .beginner, instructions: exercise.beginner)
-                            difficultyRow(level: .intermediate, instructions: exercise.intermediate)
-                            difficultyRow(level: .advanced, instructions: exercise.advanced)
+                        // Detailed Description (if available)
+                        if let detailedDescription = exercise.detailedDescription, !detailedDescription.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Detailed Guide")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Text(detailedDescription)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(Color(UIColor.secondarySystemBackground))
+                                    .cornerRadius(10)
+                            }
+                        }
+                        
+                        // Instructions for current difficulty
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Instructions (\(difficulty.displayName))")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            HStack {
+                                Image(systemName: "figure.strengthtraining.traditional")
+                                    .font(.body)
+                                    .foregroundColor(difficulty.color)
+                                
+                                Text(exercise.instructions(for: difficulty))
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(difficulty.color.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        
+                        // All difficulty levels
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("All Difficulty Levels")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            VStack(spacing: 6) {
+                                difficultyRow(level: .beginner, instructions: exercise.beginner)
+                                difficultyRow(level: .intermediate, instructions: exercise.intermediate)
+                                difficultyRow(level: .advanced, instructions: exercise.advanced)
+                            }
                         }
                     }
                 }
