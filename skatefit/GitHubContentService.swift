@@ -93,7 +93,7 @@ class GitHubContentService: ObservableObject {
             // Parse the LFS pointer to get the SHA
             let lines = dataString.components(separatedBy: .newlines)
             guard let oidLine = lines.first(where: { $0.starts(with: "oid sha256:") }),
-                  let sha = oidLine.components(separatedBy: ":").last else {
+                  let _ = oidLine.components(separatedBy: ":").last else {
                 throw NSError(domain: "GitHubContentService", code: 2, 
                              userInfo: [NSLocalizedDescriptionKey: "Failed to parse LFS pointer"])
             }
@@ -166,14 +166,40 @@ class GitHubContentService: ObservableObject {
     
     // MARK: - Private Methods
     
-    private func downloadAndCacheWorkouts() async throws -> [WorkoutContainer] {
-        let downloadURL = buildFileDownloadURL(fileName: workoutsFileName)
-        print("Downloading workouts from: \(downloadURL)")
+    func downloadAndCacheWorkouts() async throws -> [WorkoutContainer] {
+        // Use GitHub API to bypass CDN caching issues
+        let apiURL = URL(string: "https://api.github.com/repos/\(repoOwner)/\(repoName)/contents/\(workoutsFileName)")!
+        print("Fetching workouts.json info from GitHub API: \(apiURL)")
         
-        let (data, _) = try await URLSession.shared.data(from: downloadURL)
+        // Get file info from GitHub API
+        let (apiData, _) = try await URLSession.shared.data(from: apiURL)
+        
+        guard let apiResponse = try JSONSerialization.jsonObject(with: apiData) as? [String: Any],
+              let downloadURL = apiResponse["download_url"] as? String else {
+            throw NSError(domain: "GitHubContentService", code: 3, 
+                         userInfo: [NSLocalizedDescriptionKey: "Failed to get download URL from GitHub API"])
+        }
+        
+        // Add timestamp to force fresh download
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let freshDownloadURL = URL(string: "\(downloadURL)?cache=\(timestamp)")!
+        print("Downloading workouts from fresh URL: \(freshDownloadURL)")
+        
+        let (data, _) = try await URLSession.shared.data(from: freshDownloadURL)
+        print("Downloaded \(data.count) bytes of data")
+        
+        // Debug: Print first few characters to see what we got
+        if let dataString = String(data: data, encoding: .utf8) {
+            print("Response preview: \(String(dataString.prefix(200)))")
+        }
         
         // Parse and validate
         let workouts = try JSONDecoder().decode([WorkoutContainer].self, from: data)
+        print("Parsed \(workouts.count) workouts successfully")
+        
+        // Debug: Print workout names
+        let workoutNames = workouts.map { $0.name }
+        print("Workout names: \(workoutNames)")
         
         // Cache the data
         let cachedWorkoutsURL = cacheDirectory.appendingPathComponent(workoutsFileName)
@@ -188,8 +214,9 @@ class GitHubContentService: ObservableObject {
     }
     
     private func buildFileDownloadURL(fileName: String) -> URL {
-        // Use raw GitHub URLs for direct file access
-        return URL(string: "https://raw.githubusercontent.com/\(repoOwner)/\(repoName)/\(branch)/\(fileName)")!
+        // Use raw GitHub URLs for direct file access with cache busting
+        let timestamp = Int(Date().timeIntervalSince1970)
+        return URL(string: "https://raw.githubusercontent.com/\(repoOwner)/\(repoName)/\(branch)/\(fileName)?cache=\(timestamp)")!
     }
     
     private func buildVideoDownloadURL(fileName: String) -> URL {
@@ -222,6 +249,12 @@ class GitHubContentService: ObservableObject {
     }
     
     // MARK: - Cache Management
+    
+    func clearWorkoutsCache() {
+        let cachedWorkoutsURL = cacheDirectory.appendingPathComponent(workoutsFileName)
+        try? FileManager.default.removeItem(at: cachedWorkoutsURL)
+        print("Workouts cache cleared")
+    }
     
     func clearCache() {
         try? FileManager.default.removeItem(at: cacheDirectory)

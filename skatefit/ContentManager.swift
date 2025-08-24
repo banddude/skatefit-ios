@@ -4,20 +4,25 @@ import Combine
 
 @MainActor
 class ContentManager: ObservableObject {
-    static let shared = ContentManager()
+    nonisolated static let shared = ContentManager()
     
     @Published var isInitializing = false
     @Published var initializationError: String?
     @Published var workoutContainers: [WorkoutContainer] = []
     @Published var contentUpdateAvailable = false
     
-    private let gitHubContentService = GitHubContentService.shared
+    private let gitHubContentService: GitHubContentService
     private var cancellables = Set<AnyCancellable>()
     private var updateCheckTimer: Timer?
     
-    private init() {
-        setupBindings()
-        schedulePeriodicUpdates()
+    nonisolated private init() {
+        self.gitHubContentService = GitHubContentService.shared
+        self.cancellables = Set<AnyCancellable>()
+        
+        Task { @MainActor in
+            setupBindings()
+            schedulePeriodicUpdates()
+        }
     }
     
     // MARK: - Public Methods
@@ -39,16 +44,8 @@ class ContentManager: ObservableObject {
             print("Content initialized successfully with \(workoutContainers.count) workouts")
             
         } catch {
-            print("Failed to load from GitHub, trying local fallback: \(error)")
-            
-            // Fallback to local workouts.json if GitHub fails
-            do {
-                workoutContainers = try loadLocalWorkouts()
-                print("Using local fallback workouts: \(workoutContainers.count)")
-            } catch {
-                initializationError = "Failed to load workout content: \(error.localizedDescription)"
-                print("Complete failure to load workouts: \(error)")
-            }
+            initializationError = "Failed to load workout content from GitHub: \(error.localizedDescription)"
+            print("Failed to load workouts from GitHub: \(error)")
         }
         
         isInitializing = false
@@ -56,30 +53,79 @@ class ContentManager: ObservableObject {
     
     /// Force refresh content from GitHub
     func refreshContent() async {
+        // Prevent multiple simultaneous refreshes
+        guard !isInitializing else { return }
+        
+        isInitializing = true
+        initializationError = nil
+        
         do {
-            try await gitHubContentService.updateContent()
-            workoutContainers = try await gitHubContentService.loadWorkouts()
-            print("Content refreshed successfully")
+            // Force clear ALL cache and reset version tracking
+            gitHubContentService.clearCache()
+            
+            // Clear current workouts to ensure fresh state
+            workoutContainers = []
+            
+            // Download fresh workouts directly (bypassing cache check) with retry logic
+            var freshWorkouts: [WorkoutContainer] = []
+            var attempt = 0
+            let maxAttempts = 3
+            
+            repeat {
+                attempt += 1
+                do {
+                    freshWorkouts = try await gitHubContentService.downloadAndCacheWorkouts()
+                    break
+                } catch {
+                    if attempt == maxAttempts {
+                        throw error
+                    }
+                    print("Refresh attempt \(attempt) failed, retrying...")
+                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                }
+            } while attempt < maxAttempts
+            
+            // Update the workouts array with fresh data
+            workoutContainers = freshWorkouts
+            contentUpdateAvailable = false
+            
+            // Download any new videos that aren't cached
+            downloadAllVideos()
+            
+            print("Content refreshed successfully with \(freshWorkouts.count) workouts")
         } catch {
             print("Failed to refresh content: \(error)")
-            // Keep existing content, don't show error to user unless critical
+            initializationError = "Failed to refresh content: \(error.localizedDescription)"
         }
+        
+        isInitializing = false
     }
     
-    /// Preload essential videos for offline experience
-    func preloadEssentialVideos() {
+    /// Download ALL videos for seamless offline experience
+    func downloadAllVideos() {
         Task {
-            let essentialVideos = getEssentialVideoFiles()
-            print("Preloading \(essentialVideos.count) essential videos...")
+            let allVideos = getAllVideoFiles()
+            print("Downloading all \(allVideos.count) videos for offline use...")
             
-            for videoFile in essentialVideos.prefix(5) { // Limit to first 5 to avoid overwhelming
+            for (index, videoFile) in allVideos.enumerated() {
+                // Check if video is already cached
+                let cacheDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                    .appendingPathComponent("GitHubContent")
+                let cachedVideoURL = cacheDirectory.appendingPathComponent("videos").appendingPathComponent(videoFile.hasSuffix(".mp4") ? videoFile : "\(videoFile).mp4")
+                
+                if FileManager.default.fileExists(atPath: cachedVideoURL.path) {
+                    print("Already cached (\(index + 1)/\(allVideos.count)): \(videoFile)")
+                    continue
+                }
+                
                 do {
                     _ = try await gitHubContentService.downloadVideo(fileName: videoFile)
-                    print("Preloaded: \(videoFile)")
+                    print("Downloaded (\(index + 1)/\(allVideos.count)): \(videoFile)")
                 } catch {
-                    print("Failed to preload \(videoFile): \(error)")
+                    print("Failed to download \(videoFile): \(error)")
                 }
             }
+            print("✅ All videos downloaded successfully!")
         }
     }
     
@@ -102,29 +148,21 @@ class ContentManager: ObservableObject {
         }
     }
     
-    private func loadLocalWorkouts() throws -> [WorkoutContainer] {
-        guard let url = Bundle.main.url(forResource: "workouts", withExtension: "json") else {
-            throw NSError(domain: "ContentManager", code: 1, 
-                         userInfo: [NSLocalizedDescriptionKey: "Local workouts.json not found"])
-        }
-        
-        let data = try Data(contentsOf: url)
-        let workouts = try JSONDecoder().decode([WorkoutContainer].self, from: data)
-        return workouts
-    }
     
-    private func getEssentialVideoFiles() -> [String] {
-        // Get video files from first workout of each container for quick startup experience
-        var essentialFiles: [String] = []
+    private func getAllVideoFiles() -> [String] {
+        // Get ALL video files from all workouts
+        var allFiles: [String] = []
         
         for container in workoutContainers {
-            if let firstExercise = container.exercises.first,
-               let videoFile = firstExercise.videoFile {
-                essentialFiles.append(videoFile)
+            for exercise in container.exercises {
+                if let videoFile = exercise.videoFile, !videoFile.isEmpty {
+                    allFiles.append(videoFile)
+                }
             }
         }
         
-        return essentialFiles
+        // Remove duplicates and return
+        return Array(Set(allFiles))
     }
     
     // MARK: - Cache Management

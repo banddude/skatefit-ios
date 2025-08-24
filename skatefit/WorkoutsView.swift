@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct WorkoutsView: View {
-    @StateObject private var viewModel = WorkoutsViewModel()
     @EnvironmentObject var contentManager: ContentManager
     @State private var showOnboarding = false
 
@@ -16,6 +15,10 @@ struct WorkoutsView: View {
                         Text("Workouts")
                             .font(.largeTitle)
                             .fontWeight(.bold)
+                            .onLongPressGesture {
+                                // Debug: Clear all cache
+                                contentManager.clearCache()
+                            }
                         
                         Spacer()
                         
@@ -88,7 +91,7 @@ struct WorkoutsView: View {
                                 .padding(.vertical, 50)
                         }
                     } else {
-                        // Workouts Grid - Show difficulty options
+                        // Workouts Grid - Show difficulty options from GitHub
                         VStack(alignment: .leading, spacing: 20) {
                             ForEach(contentManager.workoutContainers) { workout in
                                 WorkoutDifficultyCard(workout: workout)
@@ -99,6 +102,15 @@ struct WorkoutsView: View {
                     Spacer() // Push content to top
                 }
                 .padding(.vertical)
+            }
+            .refreshable {
+                // Start refresh in a detached task to prevent cancellation from UI gestures
+                await withCheckedContinuation { continuation in
+                    Task.detached {
+                        await contentManager.refreshContent()
+                        continuation.resume()
+                    }
+                }
             }
             .navigationBarHidden(true)
             .background(Color(.systemGroupedBackground))

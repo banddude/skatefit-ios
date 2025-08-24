@@ -26,8 +26,8 @@ struct skatefitApp: App {
                         Task {
                             await contentManager.initializeContent()
                             
-                            // Preload essential videos in background
-                            contentManager.preloadEssentialVideos()
+                            // Download all videos in background for seamless experience
+                            contentManager.downloadAllVideos()
                             
                             // Hide splash screen after content is ready (or after 3 seconds max)
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

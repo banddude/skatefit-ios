@@ -9,13 +9,7 @@ class VideoService: ObservableObject {
     private init() {}
     
     func getVideoURL(for fileName: String) -> URL? {
-        // Priority 1: Check for bundled video first (fastest)
-        if let bundledURL = getBundledVideoURL(for: fileName) {
-            print("Using bundled video: \(fileName)")
-            return bundledURL
-        }
-        
-        // Priority 2: Check if video is cached from GitHub
+        // Priority 1: Check if video is cached from GitHub
         let cacheDirectory = getCacheDirectory()
         let cachedVideoURL = cacheDirectory.appendingPathComponent("videos").appendingPathComponent(fileName.hasSuffix(".mp4") ? fileName : "\(fileName).mp4")
         
@@ -24,7 +18,7 @@ class VideoService: ObservableObject {
             return cachedVideoURL
         }
         
-        // Priority 3: Return placeholder and trigger background download
+        // Priority 2: Return placeholder and trigger background download
         print("Video not available locally, will download: \(fileName)")
         downloadVideoInBackground(fileName: fileName)
         
@@ -33,7 +27,7 @@ class VideoService: ObservableObject {
     
     /// Async version for explicit remote video loading
     func getVideoURLAsync(for fileName: String) async -> URL? {
-        // First check bundled and cached
+        // First check cached
         if let url = getVideoURL(for: fileName), 
            url != getPlaceholderVideoURL() {
             return url
