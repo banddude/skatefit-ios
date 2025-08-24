@@ -136,19 +136,8 @@ struct SingleExercisePlayerView: View {
                     .shadow(radius: 0)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack {
-                    // Debug button - remove in production
-                    Button("Info") {
-                        print("🔘 Debug button pressed")
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showExerciseDetails.toggle()
-                        }
-                    }
-                    .foregroundColor(.white)
-                    
-                    Button("Done") {
-                        dismiss()
-                    }
+                Button("Done") {
+                    dismiss()
                 }
             }
         }

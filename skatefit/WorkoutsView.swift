@@ -32,26 +32,6 @@ struct WorkoutsView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Update available indicator
-                    if contentManager.contentUpdateAvailable {
-                        Button(action: {
-                            Task {
-                                await contentManager.refreshContent()
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "arrow.clockwise")
-                                Text("Content update available - Tap to refresh")
-                                    .font(.caption)
-                            }
-                            .foregroundColor(.accentColor)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.accentColor.opacity(0.1))
-                            .cornerRadius(16)
-                        }
-                        .padding(.horizontal)
-                    }
                     
                     // Main Content Area
                     if contentManager.workoutContainers.isEmpty {
