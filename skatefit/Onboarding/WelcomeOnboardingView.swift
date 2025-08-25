@@ -23,17 +23,11 @@ struct WelcomeOnboardingView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.accentColor)
                 
-                Text("Build the strength, balance, and mobility you need to dominate the streets and skate parks.")
+                Text("Build the strength, balance and mobility you need to train like a skater and progress like a pro.")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 20)
-                
-                Text("Train like a skater, progress like a pro.")
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 30)
             }
             
             // Features - styled like WorkoutsView cards
