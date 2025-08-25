@@ -3,22 +3,20 @@ import SwiftUI
 struct SplashView: View {
     var body: some View {
         ZStack {
-            // You can customize the background color here
-            Color.blue.ignoresSafeArea()
+            // Black background
+            Color.black.ignoresSafeArea()
             
-            VStack {
-                // Replace with your app logo or image if available
-                Image(systemName: "figure.skating")
+            VStack(spacing: 20) {
+                // Custom skater icon
+                Image("skater_icon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 100, height: 100)
-                    .foregroundColor(.white)
+                    .frame(width: 160, height: 160)
                 
                 Text("SkateFit")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
-                    .padding(.top)
             }
         }
     }

@@ -4,6 +4,7 @@ struct OnboardingView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var onboardingManager = OnboardingManager.shared
     @State private var currentPage = 0
+    @State private var dragOffset: CGFloat = 0
     
     private let pages = [
         AnyView(WelcomeOnboardingView()),
@@ -43,6 +44,24 @@ struct OnboardingView: View {
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             }
+            .offset(y: dragOffset)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if value.translation.height > 0 {
+                            dragOffset = value.translation.height
+                        }
+                    }
+                    .onEnded { value in
+                        if value.translation.height > 100 {
+                            completeOnboarding()
+                        } else {
+                            withAnimation(.spring()) {
+                                dragOffset = 0
+                            }
+                        }
+                    }
+            )
             
             // Floating Navigation buttons
             VStack {

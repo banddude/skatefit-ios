@@ -2,20 +2,13 @@ import SwiftUI
 
 struct WelcomeOnboardingView: View {
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             // Logo and Title
-            VStack(spacing: 16) {
-                Image(systemName: "figure.skating")
+            VStack(spacing: 12) {
+                Image("skater_icon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 60, height: 60)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple, .pink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .frame(width: 100, height: 100)
                 
                 Text("Welcome to SkateFit")
                     .font(.largeTitle)
