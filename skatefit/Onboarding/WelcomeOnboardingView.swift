@@ -2,16 +2,20 @@ import SwiftUI
 
 struct WelcomeOnboardingView: View {
     var body: some View {
-        VStack(spacing: 30) {
-            Spacer()
-            
+        VStack(spacing: 20) {
             // Logo and Title
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 Image(systemName: "figure.skating")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 80, height: 80)
-                    .foregroundColor(.blue)
+                    .frame(width: 60, height: 60)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                 
                 Text("Welcome to SkateFit")
                     .font(.largeTitle)
@@ -20,13 +24,13 @@ struct WelcomeOnboardingView: View {
             }
             
             // Description
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Text("Skateboarding-Specific Fitness")
                     .font(.title2)
                     .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.accentColor)
                 
-                Text("Build the strength, balance, and mobility you need to improve your skateboarding performance.")
+                Text("Build the strength, balance, and mobility you need to dominate the streets and skate parks.")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
@@ -39,16 +43,14 @@ struct WelcomeOnboardingView: View {
                     .padding(.horizontal, 30)
             }
             
-            Spacer()
-            
-            // Features
-            VStack(alignment: .leading, spacing: 12) {
-                FeatureRow(icon: "target", title: "Skateboarding-focused exercises")
-                FeatureRow(icon: "figure.strengthtraining.traditional", title: "Progressive difficulty levels")
-                FeatureRow(icon: "play.rectangle", title: "Video-guided workouts")
-                FeatureRow(icon: "clock", title: "Quick 15-30 minute sessions")
+            // Features - styled like WorkoutsView cards
+            VStack(spacing: 12) {
+                FeatureCard(icon: "target", title: "Skate-Specific Training", description: "Exercises designed for skateboarding strength and balance", color: .mint)
+                FeatureCard(icon: "star.fill", title: "3 Difficulty Levels", description: "Progress from beginner to advanced at your own pace", color: .blue)
+                FeatureCard(icon: "play.rectangle.fill", title: "Follow-Along Videos", description: "Crystal clear demonstrations for every exercise", color: .purple)
+                FeatureCard(icon: "clock.fill", title: "Quick Sessions", description: "Get stronger in just 25-35 minutes", color: .orange)
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, 20)
             
             Spacer()
         }
@@ -57,19 +59,39 @@ struct WelcomeOnboardingView: View {
     }
 }
 
-struct FeatureRow: View {
+struct FeatureCard: View {
     let icon: String
     let title: String
+    let description: String
+    let color: Color
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(.blue)
-                .frame(width: 20)
-            Text(title)
-                .font(.body)
-            Spacer()
+                .font(.title3)
+                .foregroundColor(color)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(color)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(color.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
