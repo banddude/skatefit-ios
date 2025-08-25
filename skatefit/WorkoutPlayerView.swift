@@ -48,17 +48,27 @@ struct WorkoutPlayerView: View {
             // Custom navigation bar overlay
             VStack {
                 HStack {
-                    // Section badge (same styling as SingleExercisePlayerView)
+                    // Section badge - styled like WorkoutsView difficulty buttons
                     if currentExerciseIndex < exercises.count {
-                        Text(exercises[currentExerciseIndex].section)
-                            .font(.system(size: 12, weight: .semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(sectionColor(exercises[currentExerciseIndex].section))
-                            .foregroundColor(.white)
-                            .cornerRadius(16)
-                            .fixedSize()
-                            .shadow(radius: 0)
+                        HStack(spacing: 4) {
+                            Image(systemName: getSectionIcon(exercises[currentExerciseIndex].section))
+                                .font(.caption2)
+                                .foregroundColor(sectionColor(exercises[currentExerciseIndex].section))
+                            
+                            Text(exercises[currentExerciseIndex].section)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(sectionColor(exercises[currentExerciseIndex].section).opacity(0.3), lineWidth: 1)
+                        )
+                        .fixedSize()
                     }
                     
                     Spacer()
@@ -228,6 +238,15 @@ struct WorkoutPlayerView: View {
         default: return .gray
         }
     }
+    
+    private func getSectionIcon(_ section: String) -> String {
+        switch section {
+        case "Warm-up": return "thermometer.low"
+        case "Main": return "figure.strengthtraining.traditional"
+        case "Cool-down": return "leaf"
+        default: return "circle"
+        }
+    }
 }
 
 // Simplified version of SingleExercisePlayerView for embedding
@@ -308,27 +327,27 @@ struct SingleExercisePageView: View {
                         .font(.body)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
-                        .lineLimit(3)
                         .padding(.horizontal, 30)
                         .shadow(color: .black, radius: 2)
+                        .fixedSize(horizontal: false, vertical: true)
                     
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "figure.strengthtraining.traditional")
-                            .font(.title3)
-                            .foregroundColor(.white)
-                        
+                    VStack(spacing: 4) {
                         Text(exercise.instructions(for: difficulty))
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.leading)
+                            .font(.body)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background(difficulty.color.opacity(0.9))
-                    .cornerRadius(16)
-                    .shadow(color: .black.opacity(0.5), radius: 6)
+                    .background(Color(.tertiarySystemGroupedBackground))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(difficulty.color.opacity(0.3), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 4)
                 }
                 .padding(.bottom, 50) // Extra padding for safe area
                 .frame(maxWidth: .infinity)
@@ -342,6 +361,16 @@ struct SingleExercisePageView: View {
             }
             
             
+        }
+    }
+    
+    private func getWorkoutColor(_ workoutName: String) -> Color {
+        switch workoutName {
+        case "Full Body Workout": return .blue
+        case "Mobility & Activation": return .orange
+        case "Strength": return .purple
+        case "Core & Stability": return .teal
+        default: return .gray
         }
     }
 }

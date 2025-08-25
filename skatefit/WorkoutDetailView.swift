@@ -65,20 +65,28 @@ struct WorkoutDetailView: View {
                             .cornerRadius(10)
                     }
                     
-                    // Start Workout Button
+                    // Start Workout Button - styled like WorkoutsView difficulty buttons
                     Button(action: {
                         workoutPresentation = WorkoutPresentation(exerciseIndex: 0)
                     }) {
-                        HStack {
+                        HStack(spacing: 8) {
                             Image(systemName: "play.fill")
+                                .font(.body)
+                                .foregroundColor(difficulty.color)
+                            
                             Text("Start Workout")
+                                .font(.body)
                                 .fontWeight(.semibold)
+                                .foregroundColor(.primary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(difficulty.color)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(difficulty.color.opacity(0.3), lineWidth: 1)
+                        )
                     }
                 }
                 .padding(16)
