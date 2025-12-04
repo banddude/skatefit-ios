@@ -402,13 +402,15 @@ class GitHubContentService: ObservableObject {
     func clearCache() {
         try? FileManager.default.removeItem(at: cacheDirectory)
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        
+        try? FileManager.default.createDirectory(at: exercisesCacheDir, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: workoutsCacheDir, withIntermediateDirectories: true)
+
         userDefaults.removeObject(forKey: lastUpdateKey)
         userDefaults.removeObject(forKey: contentVersionKey)
-        
+
         lastUpdateDate = nil
         updateAvailable = false
-        
+
         print("Cache cleared")
     }
     

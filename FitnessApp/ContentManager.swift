@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import AVFoundation
 
 class ContentManager: ObservableObject {
     static let shared = ContentManager()
@@ -41,8 +42,10 @@ class ContentManager: ObservableObject {
             
             await MainActor.run {
                 workoutContainers = containers
+                // Start preloading thumbnails in background
+                ThumbnailCache.shared.preloadThumbnails(for: containers)
             }
-            
+
             print("Content initialized successfully with \(containers.count) workouts")
             
         } catch {
@@ -82,6 +85,8 @@ class ContentManager: ObservableObject {
             await MainActor.run {
                 workoutContainers = freshWorkouts
                 contentUpdateAvailable = false
+                // Preload thumbnails for new content
+                ThumbnailCache.shared.preloadThumbnails(for: freshWorkouts)
             }
             
             // Download any new videos that aren't cached
@@ -217,5 +222,95 @@ extension EnvironmentValues {
     var contentManager: ContentManager {
         get { self[ContentManagerEnvironmentKey.self] }
         set { self[ContentManagerEnvironmentKey.self] = newValue }
+    }
+}
+
+// MARK: - Thumbnail Cache
+
+/// Singleton cache for exercise video thumbnails
+/// Preloads thumbnails in the background when workouts are loaded
+class ThumbnailCache: ObservableObject {
+    static let shared = ThumbnailCache()
+
+    private let cache = NSCache<NSString, UIImage>()
+    private var loadingTasks: [String: Task<Void, Never>] = [:]
+
+    @Published private(set) var loadedCount = 0
+    @Published private(set) var totalCount = 0
+
+    private init() {
+        cache.countLimit = 200
+    }
+
+    /// Get a cached thumbnail, or nil if not yet loaded
+    func thumbnail(for videoFile: String?) -> UIImage? {
+        guard let videoFile = videoFile, !videoFile.isEmpty else { return nil }
+        return cache.object(forKey: videoFile as NSString)
+    }
+
+    /// Preload thumbnails for all exercises in the given workouts
+    func preloadThumbnails(for workouts: [WorkoutContainer]) {
+        var videoFiles: Set<String> = []
+        for workout in workouts {
+            for exercise in workout.exercises {
+                if let videoFile = exercise.videoFile, !videoFile.isEmpty {
+                    videoFiles.insert(videoFile)
+                }
+            }
+        }
+
+        totalCount = videoFiles.count
+        loadedCount = 0
+
+        for videoFile in videoFiles {
+            loadThumbnail(for: videoFile)
+        }
+    }
+
+    private func loadThumbnail(for videoFile: String) {
+        if cache.object(forKey: videoFile as NSString) != nil { return }
+        if loadingTasks[videoFile] != nil { return }
+
+        loadingTasks[videoFile] = Task {
+            guard let url = getVideoURL(for: videoFile) else { return }
+
+            let asset = AVURLAsset(url: url)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+
+            do {
+                let (cgImage, _) = try await imageGenerator.image(at: .zero)
+                let uiImage = UIImage(cgImage: cgImage)
+
+                await MainActor.run {
+                    cache.setObject(uiImage, forKey: videoFile as NSString)
+                    loadedCount += 1
+                    loadingTasks.removeValue(forKey: videoFile)
+                }
+            } catch {
+                _ = await MainActor.run {
+                    loadingTasks.removeValue(forKey: videoFile)
+                }
+            }
+        }
+    }
+
+    private func getVideoURL(for videoFile: String) -> URL? {
+        let videoFileName = videoFile.hasSuffix(".mp4") ? videoFile : "\(videoFile).mp4"
+        let cacheDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("GitHubContent")
+            .appendingPathComponent("videos")
+        let localURL = cacheDirectory.appendingPathComponent(videoFileName)
+
+        if FileManager.default.fileExists(atPath: localURL.path) {
+            return localURL
+        }
+        return nil
+    }
+
+    func clearCache() {
+        cache.removeAllObjects()
+        loadedCount = 0
+        totalCount = 0
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct WorkoutDetailView: View {
     let workoutName: String
@@ -136,9 +137,13 @@ struct WorkoutDetailView: View {
                         }
                         .padding(.horizontal)
                         
-                        // Exercise cards
-                        VStack(spacing: 8) {
-                            ForEach(Array(exercisesBySection[section]?.enumerated() ?? [].enumerated()), id: \.element.id) { sectionIndex, exercise in
+                        // Exercise cards grid
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 10),
+                            GridItem(.flexible(), spacing: 10),
+                            GridItem(.flexible(), spacing: 10)
+                        ], spacing: 10) {
+                            ForEach(exercisesBySection[section] ?? [], id: \.id) { exercise in
                                 Button(action: {
                                     // Find the actual index in the full exercises array
                                     if let exerciseIndex = exercises.firstIndex(where: { $0.move == exercise.move && $0.section == exercise.section }) {
@@ -194,56 +199,75 @@ struct WorkoutDetailView: View {
 struct WorkoutExerciseRow: View {
     let exercise: WorkoutExercise
     let difficulty: WorkoutDifficulty
-    
+
+    @ObservedObject private var thumbnailCache = ThumbnailCache.shared
+
+    private var thumbnail: UIImage? {
+        thumbnailCache.thumbnail(for: exercise.videoFile)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Exercise title with play icon
-            HStack {
-                HStack(spacing: 8) {
-                    Image(systemName: "play.circle")
-                        .font(.title3)
-                        .foregroundColor(exercise.section.sectionColor)
-                    
-                    Text(exercise.move)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        GeometryReader { geometry in
+            ZStack {
+                // Background thumbnail or placeholder
+                Group {
+                    if let thumbnail = thumbnail {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                    } else {
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        exercise.section.sectionColor.opacity(0.4),
+                                        exercise.section.sectionColor.opacity(0.7)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
                 }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .clipped()
+
+                // Dark overlay to push thumbnail to background
+                Color.black.opacity(0.4)
+
+                // Title
+                VStack {
+                    Spacer()
+
+                    Text(exercise.move)
+                        .font(.callout)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .shadow(color: .black, radius: 3)
+                        .padding(.horizontal, 6)
+
+                    Spacer()
+                    Spacer()
+                }
+
+                // Reps at bottom
+                VStack {
+                    Spacer()
+
+                    Text(exercise.instructions(for: difficulty))
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .shadow(color: .black, radius: 2)
+                        .padding(.horizontal, 2)
+                        .padding(.bottom, 10)
+                }
             }
-            
-            // Instructions
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "star.fill")
-                    .font(.caption)
-                    .foregroundColor(difficulty.color)
-                    .frame(width: 16)
-                
-                Text(exercise.instructions(for: difficulty))
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(difficulty.color)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
-            // Description
-            Text(exercise.description)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
+            .cornerRadius(10)
         }
-        .padding(12)
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(exercise.section.sectionColor.opacity(0.2), lineWidth: 1)
-        )
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 

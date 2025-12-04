@@ -25,11 +25,13 @@ struct WorkoutPlayerView: View {
         self._currentExerciseIndex = State(initialValue: startingIndex)
     }
 
+    @State private var scrolledID: Int?
+
     var body: some View {
         ZStack {
             GeometryReader { geometry in
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 0) {
+                    HStack(spacing: 0) {
                         ForEach(exercises.indices, id: \.self) { index in
                             SingleExercisePageView(
                                 exercise: exercises[index],
@@ -46,67 +48,75 @@ struct WorkoutPlayerView: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.paging)
-                .scrollPosition(id: Binding(
-                    get: { currentExerciseIndex },
-                    set: { if let newValue = $0 { currentExerciseIndex = newValue } }
-                ))
-                .ignoresSafeArea(.all)
+                .scrollPosition(id: $scrolledID)
+                .onAppear {
+                    scrolledID = startingIndex
+                }
+                .onChange(of: scrolledID) { _, newValue in
+                    if let newValue = newValue {
+                        currentExerciseIndex = newValue
+                    }
+                }
             }
+            .ignoresSafeArea(.all)
             
             // Custom navigation bar overlay
-            VStack {
-                HStack {
-                    // Section badge - styled like WorkoutsView difficulty buttons
-                    if currentExerciseIndex < exercises.count {
-                        HStack(spacing: 4) {
-                            Image(systemName: exercises[currentExerciseIndex].section.sectionIcon)
-                                .font(.caption2)
-                                .foregroundColor(exercises[currentExerciseIndex].section.sectionColor)
-                            
-                            Text(exercises[currentExerciseIndex].section)
-                                .font(.caption2)
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(height: 0)
+                    .safeAreaInset(edge: .top) {
+                        HStack {
+                            // Section badge
+                            if currentExerciseIndex < exercises.count {
+                                HStack(spacing: 4) {
+                                    Image(systemName: exercises[currentExerciseIndex].section.sectionIcon)
+                                        .font(.caption2)
+                                        .foregroundColor(exercises[currentExerciseIndex].section.sectionColor)
+
+                                    Text(exercises[currentExerciseIndex].section)
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(.tertiarySystemGroupedBackground))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(exercises[currentExerciseIndex].section.sectionColor.opacity(0.3), lineWidth: 1)
+                                )
+                                .fixedSize()
+                            }
+
+                            Spacer()
+
+                            // Workout title
+                            Text(workoutName)
+                                .font(.headline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
+
+                            Spacer()
+
+                            // Done button
+                            Button("Done") {
+                                dismiss()
+                            }
+                            .font(.body)
+                            .foregroundColor(.white)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemGroupedBackground))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(exercises[currentExerciseIndex].section.sectionColor.opacity(0.3), lineWidth: 1)
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.black.opacity(0.6), Color.clear]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                        .fixedSize()
                     }
-                    
-                    Spacer()
-                    
-                    // Workout title
-                    Text(workoutName)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    // Done button
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .font(.body)
-                    .foregroundColor(.white)
-                }
-                .padding(.horizontal)
-                .padding(.top, 50) // Account for status bar
-                .padding(.bottom, 10)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.black.opacity(0.6), Color.clear]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                
+
                 Spacer()
             }
             
