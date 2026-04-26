@@ -38,6 +38,8 @@ struct WorkoutPlayerView: View {
                                 difficulty: difficulty,
                                 index: index,
                                 total: exercises.count,
+                                workoutName: workoutName,
+                                onDismiss: { dismiss() },
                                 showExerciseDetails: $showExerciseDetails,
                                 player: videoPreloader.player(for: index)
                             )
@@ -59,67 +61,7 @@ struct WorkoutPlayerView: View {
                 }
             }
             .ignoresSafeArea(.all)
-            
-            // Custom navigation bar overlay
-            VStack(spacing: 0) {
-                Color.clear
-                    .frame(height: 0)
-                    .safeAreaInset(edge: .top) {
-                        HStack {
-                            // Section badge
-                            if currentExerciseIndex < exercises.count {
-                                HStack(spacing: 4) {
-                                    Image(systemName: exercises[currentExerciseIndex].section.sectionIcon)
-                                        .font(.caption2)
-                                        .foregroundColor(exercises[currentExerciseIndex].section.sectionColor)
 
-                                    Text(exercises[currentExerciseIndex].section)
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(.tertiarySystemGroupedBackground))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(exercises[currentExerciseIndex].section.sectionColor.opacity(0.3), lineWidth: 1)
-                                )
-                                .fixedSize()
-                            }
-
-                            Spacer()
-
-                            // Workout title
-                            Text(workoutName)
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-
-                            Spacer()
-
-                            // Done button
-                            Button("Done") {
-                                dismiss()
-                            }
-                            .font(.body)
-                            .foregroundColor(.white)
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.black.opacity(0.6), Color.clear]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    }
-
-                Spacer()
-            }
-            
             // Exercise Details Overlay
             if showExerciseDetails && currentExerciseIndex < exercises.count {
                 exerciseDetailsOverlay(for: exercises[currentExerciseIndex])
@@ -359,8 +301,14 @@ struct SingleExercisePageView: View {
     let difficulty: WorkoutDifficulty
     let index: Int
     let total: Int
+    let workoutName: String
+    let onDismiss: () -> Void
     @Binding var showExerciseDetails: Bool
     let player: AVPlayer?
+
+    private var displayMove: String {
+        exercise.move.replacingOccurrences(of: "-", with: " ")
+    }
 
     // Fallback player if preloaded one is nil
     @State private var fallbackPlayer: AVPlayer?
@@ -409,33 +357,50 @@ struct SingleExercisePageView: View {
 
             // UI overlay that respects safe areas
             VStack {
-                // Top UI with gradient background
-                VStack(alignment: .leading, spacing: 8) {
+                // Unified top section: workout name + Done, then progress + exercise title
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text(workoutName)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        Spacer()
+
+                        Button("Done", action: onDismiss)
+                            .font(.body)
+                            .foregroundColor(.white)
+                    }
+
                     HStack {
                         Text("Exercise \(index + 1) of \(total)")
                             .font(.subheadline)
-                            .foregroundColor(.white)
+                            .foregroundColor(.white.opacity(0.9))
                             .fontWeight(.medium)
                         Spacer()
                     }
-                    
+
                     ProgressView(value: Double(index + 1) / Double(total))
                         .tint(.white)
                         .scaleEffect(y: 2)
-                    
-                    Text(exercise.move)
+
+                    Text(displayMove)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .shadow(color: .black, radius: 2)
-                        .padding(.top, 8)
+                        .padding(.top, 4)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding(.horizontal)
-                .padding(.top, 80) // Extra padding for safe area and nav bar
+                .padding(.top, 60) // Safe area for status bar / Dynamic Island
+                .padding(.bottom, 12)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.black.opacity(0.6), Color.clear]),
+                        gradient: Gradient(colors: [Color.black.opacity(0.7), Color.black.opacity(0.4), Color.clear]),
                         startPoint: .top,
                         endPoint: .bottom
                     )

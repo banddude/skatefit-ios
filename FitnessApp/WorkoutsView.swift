@@ -57,10 +57,12 @@ struct WorkoutsView: View {
     
     private func toggleExpansion(for workout: WorkoutContainer) -> () -> Void {
         return {
-            if expandedWorkoutId == workout.id {
-                expandedWorkoutId = nil
-            } else {
-                expandedWorkoutId = workout.id
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                if expandedWorkoutId == workout.id {
+                    expandedWorkoutId = nil
+                } else {
+                    expandedWorkoutId = workout.id
+                }
             }
         }
     }
@@ -229,9 +231,14 @@ struct WorkoutDifficultyCard: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .top)),
+                    removal: .opacity
+                ))
             }
         }
         .padding(14)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isExpanded)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(workout.workoutColor.opacity(0.5), lineWidth: 1.5)
