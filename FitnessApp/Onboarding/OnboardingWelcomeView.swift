@@ -7,39 +7,38 @@ struct OnboardingWelcomeView: View {
     var body: some View {
         Group {
             if let welcomeData = dataLoader.data?.onboarding.welcome {
-                VStack(spacing: 16) {
-                    // Logo and Title
+                VStack(spacing: 14) {
                     VStack(spacing: 12) {
-                        // App icon - automatically uses the icon from Assets.xcassets
                         if let appIcon = AppConfig.getAppIcon() {
                             Image(uiImage: appIcon)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 100, height: 100)
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                .shadow(color: .black.opacity(0.5), radius: 14, x: 0, y: 8)
                         }
 
                         Text(welcomeData.title)
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+                            .font(.system(size: 28, weight: .heavy))
+                            .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                     }
+                    .padding(.top, 8)
 
-                    // Description
-                    VStack(spacing: 12) {
+                    VStack(spacing: 6) {
                         Text(welcomeData.subtitle)
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.accentColor)
+                            .multilineTextAlignment(.center)
 
                         Text(welcomeData.description)
-                            .font(.body)
+                            .font(.system(size: 13, weight: .medium))
                             .multilineTextAlignment(.center)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.65))
                             .padding(.horizontal, 20)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    // Features - styled like WorkoutsView cards
                     VStack(spacing: 12) {
                         ForEach(welcomeData.features) { feature in
                             FeatureCard(
@@ -50,30 +49,27 @@ struct OnboardingWelcomeView: View {
                             )
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.horizontal, 20)
 
-                    Spacer()
+                    Color.clear.frame(height: 80)
                 }
-                .padding()
-                .background(themeManager.isDarkMode ? Color.black : Color(.systemBackground))
+                .padding(.top, 6)
             } else {
-                // Loading state - show app icon while loading
                 VStack(spacing: 20) {
-                    // App icon
                     if let appIcon = AppConfig.getAppIcon() {
                         Image(uiImage: appIcon)
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 100, height: 100)
-                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                            .frame(width: 96, height: 96)
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     }
 
-                    ProgressView()
+                    ProgressView().tint(.white)
                     Text("Loading...")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.6))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(themeManager.isDarkMode ? Color.black : Color(.systemBackground))
             }
         }
     }
@@ -86,33 +82,75 @@ struct FeatureCard: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 12) {
-            if let icon = icon {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(color)
-                    .frame(width: 24)
+        HStack(alignment: .center, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                color.opacity(0.55),
+                                color.opacity(0.22)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                } else {
+                    Text(String(title.prefix(1)))
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundColor(.white)
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(color)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
 
                 Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(color.opacity(0.5), lineWidth: 1.5)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            color.opacity(0.18),
+                            Color(red: 0.10, green: 0.10, blue: 0.13).opacity(0.92)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            color.opacity(0.55),
+                            color.opacity(0.15)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: color.opacity(0.18), radius: 8, x: 0, y: 4)
     }
 }
 

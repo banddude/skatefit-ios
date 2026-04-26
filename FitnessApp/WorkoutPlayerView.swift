@@ -409,38 +409,44 @@ struct SingleExercisePageView: View {
                 Spacer()
                 
                 // Bottom UI
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     Text(exercise.description)
-                        .font(.body)
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
-                        .shadow(color: .black, radius: 2)
+                        .padding(.horizontal, 26)
+                        .shadow(color: .black.opacity(0.7), radius: 3)
                         .fixedSize(horizontal: false, vertical: true)
-                    
-                    VStack(spacing: 4) {
+
+                    HStack(spacing: 10) {
+                        Image(systemName: "figure.strengthtraining.traditional")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(difficulty.color)
+
                         Text(exercise.instructions(for: difficulty))
-                            .font(.body)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color(.tertiarySystemGroupedBackground))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(difficulty.color.opacity(0.3), lineWidth: 1)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 14)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(.ultraThinMaterial)
                     )
-                    .shadow(color: .black.opacity(0.3), radius: 4)
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(difficulty.color.opacity(0.45), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
                 }
-                .padding(.bottom, 50) // Extra padding for safe area
+                .padding(.bottom, 50)
+                .padding(.top, 30)
                 .frame(maxWidth: .infinity)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.2), Color.black.opacity(0.75)]),
+                        gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.35), Color.black.opacity(0.85)]),
                         startPoint: .top,
                         endPoint: .bottom
                     )

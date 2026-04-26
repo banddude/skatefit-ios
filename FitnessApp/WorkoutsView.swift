@@ -6,43 +6,51 @@ struct WorkoutsView: View {
     @State private var showOnboarding = false
     @State private var expandedWorkoutId: UUID? = nil
 
-    let columns = [GridItem(.adaptive(minimum: 300), spacing: 15)]
-
     private var headerView: some View {
-        HStack {
-            HStack(alignment: .bottom, spacing: 11) {
-                // App icon - automatically uses the icon from Assets.xcassets
-                if let appIcon = AppConfig.getAppIcon() {
-                    Image(uiImage: appIcon)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 56, height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: 11))
-                }
+        HStack(alignment: .center, spacing: 14) {
+            if let appIcon = AppConfig.getAppIcon() {
+                Image(uiImage: appIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
+            }
 
+            VStack(alignment: .leading, spacing: 2) {
                 Text(AppConfig.appName)
-                    .font(.system(size: 39, weight: .bold, design: .default))
+                    .font(.system(size: 32, weight: .heavy, design: .default))
                     .foregroundColor(themeManager.isDarkMode ? .white : .primary)
                     .onLongPressGesture {
                         contentManager.clearCache()
                     }
-            }
-            
-            Spacer()
-            
-            Button(action: {
-                showOnboarding = true
-            }) {
-                Image(systemName: "lightbulb")
-                    .font(.system(size: 20))
+
+                Text("Skate. Train. Recover.")
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(1.2)
+            }
+
+            Spacer()
+
+            Button(action: { showOnboarding = true }) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.yellow)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                    )
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
     }
-    
+
     private var workoutsList: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 14) {
             ForEach(contentManager.workoutContainers) { workout in
                 let isExpanded = expandedWorkoutId == workout.id
                 WorkoutDifficultyCard(
@@ -52,9 +60,9 @@ struct WorkoutsView: View {
                 )
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 20)
     }
-    
+
     private func toggleExpansion(for workout: WorkoutContainer) -> () -> Void {
         return {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
@@ -66,67 +74,82 @@ struct WorkoutsView: View {
             }
         }
     }
-    
+
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 15) {
-                    headerView
-                    
-                    if contentManager.workoutContainers.isEmpty {
-                        if contentManager.isInitializing {
-                            VStack(spacing: 8) {
-                                ProgressView()
-                                Text("Loading workouts from GitHub...")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 50)
-                        } else if let error = contentManager.initializationError {
-                            VStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(.orange)
-                                Text("Unable to load workouts")
-                                    .font(.headline)
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                Button("Retry") {
-                                    Task {
-                                        await contentManager.initializeContent()
-                                    }
+            ZStack {
+                // Subtle ambient gradient background
+                LinearGradient(
+                    colors: [
+                        Color.black,
+                        Color(red: 0.04, green: 0.03, blue: 0.08),
+                        Color.black
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        headerView
+
+                        if contentManager.workoutContainers.isEmpty {
+                            if contentManager.isInitializing {
+                                VStack(spacing: 12) {
+                                    ProgressView()
+                                        .controlSize(.large)
+                                        .tint(.white)
+                                    Text("Loading workouts…")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
                                 }
-                                .buttonStyle(.borderedProminent)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 50)
-                        } else {
-                            Text("No workouts available")
                                 .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.vertical, 50)
+                                .padding(.vertical, 80)
+                            } else if let error = contentManager.initializationError {
+                                VStack(spacing: 14) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(.orange)
+                                    Text("Unable to load workouts")
+                                        .font(.headline)
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 32)
+                                    Button("Retry") {
+                                        Task { await contentManager.initializeContent() }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.white)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 60)
+                            } else {
+                                Text("No workouts available")
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 50)
+                            }
+                        } else {
+                            workoutsList
                         }
-                    } else {
-                        workoutsList
+                        Spacer(minLength: 20)
                     }
-                    Spacer()
+                    .padding(.vertical, 12)
                 }
-                .padding(.vertical)
-            }
-            .refreshable {
-                await withCheckedContinuation { continuation in
-                    Task.detached {
-                        await contentManager.refreshContent()
-                        continuation.resume()
+                .refreshable {
+                    await withCheckedContinuation { continuation in
+                        Task.detached {
+                            await contentManager.refreshContent()
+                            continuation.resume()
+                        }
                     }
                 }
             }
             .navigationBarHidden(true)
             .scrollDismissesKeyboard(.immediately)
-            .background(themeManager.isDarkMode ? Color.black : Color(.systemBackground))
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView()
             }
@@ -141,66 +164,78 @@ struct WorkoutDifficultyCard: View {
     let workout: WorkoutContainer
     let isExpanded: Bool
     let onTap: () -> Void
-    
-    // Calculate workout stats
-    private var exerciseCount: Int {
-        workout.exercises.count
-    }
-    
+
+    @State private var isPressed = false
+
+    private var exerciseCount: Int { workout.exercises.count }
+
     private var estimatedDuration: String {
         let warmupCount = workout.exercises.filter { $0.section == "Warm-up" }.count
         let mainCount = workout.exercises.filter { $0.section == "Main" }.count
         let cooldownCount = workout.exercises.filter { $0.section == "Cool-down" }.count
         let totalMinutes = (warmupCount * 2) + (mainCount * 3) + (cooldownCount * 2)
-        return "\(totalMinutes-5)-\(totalMinutes+5) mins"
+        return "\(max(totalMinutes - 5, 1))-\(totalMinutes + 5) min"
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and title (always visible)
+        VStack(alignment: .leading, spacing: 14) {
             Button(action: onTap) {
-                HStack {
-                    Image(systemName: workout.workoutIcon)
-                        .font(.title3)
-                        .foregroundColor(workout.workoutColor)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(workout.name)
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                        
-                        Text("\(exerciseCount) exercises")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 8) {
-                        // Duration badge
-                        Text(estimatedDuration)
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(workout.workoutColor.opacity(0.2))
+                HStack(spacing: 14) {
+                    // Icon in colored circle
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        workout.workoutColor.opacity(0.45),
+                                        workout.workoutColor.opacity(0.18)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 46, height: 46)
+                        Image(systemName: workout.workoutIcon)
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(workout.workoutColor)
-                            .cornerRadius(8)
-                        
-                        // Expand/collapse indicator
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(workout.name)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: "list.bullet")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("\(exerciseCount) exercises")
+                                .font(.system(size: 12, weight: .medium))
+
+                            Text("·")
+                                .font(.system(size: 12, weight: .medium))
+
+                            Image(systemName: "clock")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(estimatedDuration)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundColor(.white.opacity(0.6))
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(PlainButtonStyle())
-            
-            // Difficulty buttons (only visible when expanded)
+            .buttonStyle(PressableCardButtonStyle())
+
             if isExpanded {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ForEach(WorkoutDifficulty.allCases, id: \.self) { difficulty in
                         NavigationLink(destination: WorkoutDetailView(
                             workoutName: workout.name,
@@ -210,23 +245,26 @@ struct WorkoutDifficultyCard: View {
                             exercises: workout.exercises
                         )) {
                             HStack(spacing: 6) {
-                                Image(systemName: "star.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(difficulty.color)
-                                
+                                Image(systemName: difficultyIcon(for: difficulty))
+                                    .font(.system(size: 11, weight: .bold))
                                 Text(difficulty.displayName)
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
+                                    .font(.system(size: 13, weight: .semibold))
                             }
+                            .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(Color(.tertiarySystemGroupedBackground))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(difficulty.color.opacity(0.3), lineWidth: 1)
+                            .padding(.vertical, 11)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        difficulty.color.opacity(0.85),
+                                        difficulty.color.opacity(0.55)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .shadow(color: difficulty.color.opacity(0.35), radius: 6, x: 0, y: 3)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -237,17 +275,58 @@ struct WorkoutDifficultyCard: View {
                 ))
             }
         }
-        .padding(14)
-        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isExpanded)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(workout.workoutColor.opacity(0.5), lineWidth: 1.5)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            workout.workoutColor.opacity(0.18),
+                            Color(red: 0.10, green: 0.10, blue: 0.13).opacity(0.92)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            workout.workoutColor.opacity(0.55),
+                            workout.workoutColor.opacity(0.15)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: workout.workoutColor.opacity(isExpanded ? 0.25 : 0.12), radius: isExpanded ? 14 : 8, x: 0, y: 4)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isExpanded)
     }
-    
+
+    private func difficultyIcon(for difficulty: WorkoutDifficulty) -> String {
+        switch difficulty {
+        case .beginner: return "leaf.fill"
+        case .intermediate: return "flame.fill"
+        case .advanced: return "bolt.fill"
+        }
+    }
+}
+
+// Press feedback for the main card row
+struct PressableCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
+            .opacity(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
 }
 
 
 #Preview {
     WorkoutsView()
-} 
+}
