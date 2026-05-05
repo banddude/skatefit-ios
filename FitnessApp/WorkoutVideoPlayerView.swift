@@ -2,6 +2,54 @@ import SwiftUI
 import AVFoundation
 import AVKit
 
+struct AppIconVideoPlaceholder: View {
+    var compact = false
+    var showSpinner = false
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Neon.panel,
+                    Neon.bg,
+                    Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            VStack(spacing: compact ? Neon.Space.sm : Neon.Space.lg) {
+                if let appIcon = AppConfig.getAppIcon() {
+                    Image(uiImage: appIcon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: compact ? 54 : 108, height: compact ? 54 : 108)
+                        .clipShape(RoundedRectangle(cornerRadius: compact ? 14 : Neon.Radius.large, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: compact ? 14 : Neon.Radius.large, style: .continuous)
+                                .stroke(
+                                    LinearGradient(colors: [Neon.cyan.opacity(0.7), Neon.magenta.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    lineWidth: Neon.Stroke.medium
+                                )
+                        )
+                        .neonGlow(Neon.magenta, radius: compact ? Neon.Glow.card : Neon.Glow.hero, opacity: 0.55)
+                } else {
+                    Image(systemName: "figure.skateboarding")
+                        .font(Neon.font(compact ? 22 : 40, .heavy))
+                        .foregroundColor(.white)
+                }
+
+                if showSpinner {
+                    ProgressView()
+                        .tint(Neon.cyan)
+                        .controlSize(compact ? .small : .regular)
+                }
+            }
+            .padding(compact ? Neon.Space.md : Neon.Space.xl)
+        }
+    }
+}
+
 struct WorkoutVideoPlayerView: UIViewRepresentable {
     let player: AVPlayer?
 
@@ -118,6 +166,93 @@ struct WorkoutVideoPlayerView: UIViewRepresentable {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Failed to configure audio session: \(error)")
+        }
+    }
+}
+
+// MARK: - Looping Video Thumbnail
+
+struct LoopingVideoThumbnail: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> LoopingPlayerContainerView {
+        let view = LoopingPlayerContainerView()
+        view.backgroundColor = .clear
+        view.configure(url: url)
+        return view
+    }
+
+    func updateUIView(_ uiView: LoopingPlayerContainerView, context: Context) {
+        if uiView.currentURL != url {
+            uiView.configure(url: url)
+        }
+    }
+
+    static func dismantleUIView(_ uiView: LoopingPlayerContainerView, coordinator: ()) {
+        uiView.teardown()
+    }
+
+    final class LoopingPlayerContainerView: UIView {
+        private(set) var currentURL: URL?
+        private var queuePlayer: AVQueuePlayer?
+        private var looper: AVPlayerLooper?
+        private var playerLayer: AVPlayerLayer?
+
+        func configure(url: URL) {
+            teardown()
+            currentURL = url
+
+            let asset = AVURLAsset(url: url)
+            let item = AVPlayerItem(asset: asset)
+            let queue = AVQueuePlayer(playerItem: item)
+            queue.isMuted = true
+            queue.automaticallyWaitsToMinimizeStalling = false
+
+            let loop = AVPlayerLooper(player: queue, templateItem: item)
+            let layer = AVPlayerLayer(player: queue)
+            layer.videoGravity = .resizeAspectFill
+            layer.frame = bounds
+            layer.opacity = 0
+            self.layer.addSublayer(layer)
+
+            queuePlayer = queue
+            looper = loop
+            playerLayer = layer
+
+            queue.play()
+
+            // Fade in once first frame renders
+            var timeObserver: Any?
+            timeObserver = queue.addBoundaryTimeObserver(forTimes: [NSValue(time: CMTime(seconds: 0.05, preferredTimescale: 600))], queue: .main) { [weak self] in
+                guard let self = self else { return }
+                if let layer = self.playerLayer, layer.opacity == 0 {
+                    CATransaction.begin()
+                    CATransaction.setAnimationDuration(0.3)
+                    layer.opacity = 1
+                    CATransaction.commit()
+                }
+                if let observer = timeObserver {
+                    queue.removeTimeObserver(observer)
+                }
+            }
+        }
+
+        func teardown() {
+            queuePlayer?.pause()
+            queuePlayer?.removeAllItems()
+            playerLayer?.removeFromSuperlayer()
+            queuePlayer = nil
+            looper = nil
+            playerLayer = nil
+            currentURL = nil
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            playerLayer?.frame = bounds
+            CATransaction.commit()
         }
     }
 }

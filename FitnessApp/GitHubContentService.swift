@@ -21,6 +21,14 @@ class GitHubContentService: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let lastUpdateKey = "GitHubContentLastUpdate"
     private let contentVersionKey = "GitHubContentVersion"
+
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpShouldUsePipelining = true
+        config.httpMaximumConnectionsPerHost = 8
+        config.timeoutIntervalForRequest = 30
+        return URLSession(configuration: config)
+    }()
     
     private init() {
         // Set up cache directory in Documents
@@ -69,7 +77,7 @@ class GitHubContentService: ObservableObject {
     }
 
     /// Check if we have cached workout and exercise files
-    private func hasCachedWorkouts() -> Bool {
+    func hasCachedWorkouts() -> Bool {
         guard let workoutFiles = try? FileManager.default.contentsOfDirectory(at: workoutsCacheDir, includingPropertiesForKeys: nil),
               let exerciseFiles = try? FileManager.default.contentsOfDirectory(at: exercisesCacheDir, includingPropertiesForKeys: nil) else {
             return false
@@ -78,16 +86,23 @@ class GitHubContentService: ObservableObject {
     }
 
     /// Load workouts from cached individual files
-    private func loadWorkoutsFromCache() async throws -> [WorkoutContainer] {
+    func loadWorkoutsFromCache() async throws -> [WorkoutContainer] {
         // Load cached exercises
         let exerciseFiles = try FileManager.default.contentsOfDirectory(at: exercisesCacheDir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "json" }
 
         var exercises: [String: ExerciseData] = [:]
-        for fileURL in exerciseFiles {
-            let data = try Data(contentsOf: fileURL)
-            let exercise = try JSONDecoder().decode(ExerciseData.self, from: data)
-            exercises[exercise.id] = exercise
+        try await withThrowingTaskGroup(of: (String, ExerciseData).self) { group in
+            for fileURL in exerciseFiles {
+                group.addTask {
+                    let data = try Data(contentsOf: fileURL)
+                    let exercise = try JSONDecoder().decode(ExerciseData.self, from: data)
+                    return (exercise.id, exercise)
+                }
+            }
+            for try await (id, exercise) in group {
+                exercises[id] = exercise
+            }
         }
 
         // Load cached workouts and merge with exercises
@@ -95,41 +110,54 @@ class GitHubContentService: ObservableObject {
             .filter { $0.pathExtension == "json" }
 
         var workouts: [WorkoutContainer] = []
-        for fileURL in workoutFiles {
-            let data = try Data(contentsOf: fileURL)
-            let workoutRef = try JSONDecoder().decode(WorkoutReference.self, from: data)
+        try await withThrowingTaskGroup(of: WorkoutContainer?.self) { group in
+            for fileURL in workoutFiles {
+                let exercisesSnapshot = exercises
+                group.addTask {
+                    let data = try Data(contentsOf: fileURL)
+                    let workoutRef = try JSONDecoder().decode(WorkoutReference.self, from: data)
 
-            // Merge exercise data
-            let mergedExercises = workoutRef.exercises.compactMap { ref -> WorkoutExercise? in
-                guard let exercise = exercises[ref.exerciseId] else {
-                    print("Warning: Exercise '\(ref.exerciseId)' not found in cache")
-                    return nil
+                    // Merge exercise data
+                    let mergedExercises = workoutRef.exercises.compactMap { ref -> WorkoutExercise? in
+                        guard let exercise = exercisesSnapshot[ref.exerciseId] else {
+                            print("Warning: Exercise '\(ref.exerciseId)' not found in cache")
+                            return nil
+                        }
+
+                        return WorkoutExercise(
+                            section: ref.section ?? exercise.section ?? "Main",
+                            move: exercise.move,
+                            description: exercise.description,
+                            detailedDescription: exercise.detailedDescription,
+                            jsonFile: exercise.jsonFile,
+                            videoFile: exercise.videoFile,
+                            beginner: ref.beginner ?? exercise.beginner,
+                            intermediate: ref.intermediate ?? exercise.intermediate,
+                            advanced: ref.advanced ?? exercise.advanced,
+                            exerciseType: exercise.exerciseType,
+                            equipment: exercise.equipment,
+                            targetMuscles: exercise.targetMuscles,
+                            benefit: exercise.benefit,
+                            durationPerRep: exercise.durationPerRep,
+                            data: exercise.data,
+                            durationSeconds: exercise.durationSeconds,
+                            transitionSeconds: exercise.transitionSeconds
+                        )
+                    }
+
+                    return WorkoutContainer(
+                        name: workoutRef.name,
+                        icon: workoutRef.icon,
+                        color: workoutRef.color,
+                        exercises: mergedExercises
+                    )
                 }
-
-                return WorkoutExercise(
-                    section: ref.section ?? exercise.section ?? "Main",
-                    move: exercise.move,
-                    description: exercise.description,
-                    detailedDescription: exercise.detailedDescription,
-                    jsonFile: exercise.jsonFile,
-                    videoFile: exercise.videoFile,
-                    beginner: ref.beginner ?? exercise.beginner,
-                    intermediate: ref.intermediate ?? exercise.intermediate,
-                    advanced: ref.advanced ?? exercise.advanced,
-                    exerciseType: exercise.exerciseType,
-                    equipment: exercise.equipment,
-                    targetMuscles: exercise.targetMuscles,
-                    benefit: exercise.benefit,
-                    durationPerRep: exercise.durationPerRep
-                )
             }
-
-            workouts.append(WorkoutContainer(
-                name: workoutRef.name,
-                icon: workoutRef.icon,
-                color: workoutRef.color,
-                exercises: mergedExercises
-            ))
+            for try await workout in group {
+                if let workout = workout {
+                    workouts.append(workout)
+                }
+            }
         }
 
         print("Loaded \(workouts.count) workouts from cache")
@@ -189,18 +217,23 @@ class GitHubContentService: ObservableObject {
     /// Check if updates are available
     func checkForUpdates() async {
         guard !isUpdating else { return }
-        
+
         await MainActor.run { isUpdating = true }
-        
+
         do {
             let currentVersion = getCurrentContentVersion()
             let latestVersion = try await getLatestContentVersion()
-            
+            let hasUpdate = latestVersion != currentVersion
+
+            if hasUpdate {
+                VideoService.shared.invalidateVideoCache()
+            }
+
             await MainActor.run {
-                self.updateAvailable = latestVersion != currentVersion
+                self.updateAvailable = hasUpdate
                 self.isUpdating = false
             }
-            
+
             print("Content version check: current=\(currentVersion), latest=\(latestVersion)")
         } catch {
             print("Error checking for updates: \(error)")
@@ -272,7 +305,10 @@ class GitHubContentService: ObservableObject {
                     equipment: exercise.equipment,
                     targetMuscles: exercise.targetMuscles,
                     benefit: exercise.benefit,
-                    durationPerRep: exercise.durationPerRep
+                    durationPerRep: exercise.durationPerRep,
+                    data: exercise.data,
+                    durationSeconds: exercise.durationSeconds,
+                    transitionSeconds: exercise.transitionSeconds
                 )
             }
 
@@ -288,6 +324,9 @@ class GitHubContentService: ObservableObject {
         userDefaults.set(Date(), forKey: lastUpdateKey)
         await MainActor.run { lastUpdateDate = Date() }
 
+        // Invalidate video cache so stale videos re-download
+        VideoService.shared.invalidateVideoCache()
+
         print("Successfully loaded \(workouts.count) workouts")
         return workouts
     }
@@ -295,27 +334,44 @@ class GitHubContentService: ObservableObject {
     // Helper: Download and cache all exercise files individually
     private func downloadAndCacheExercises() async throws -> [String: ExerciseData] {
         let apiURL = URL(string: "\(AppConfig.githubAPIBaseURL)/contents/\(AppConfig.contentFolder)/exercises")!
-        let (data, _) = try await URLSession.shared.data(from: apiURL)
+        let (data, _) = try await session.data(from: apiURL)
 
         guard let files = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             throw NSError(domain: "GitHubContentService", code: 4,
                          userInfo: [NSLocalizedDescriptionKey: "Failed to list exercise files"])
         }
 
-        var exercises: [String: ExerciseData] = [:]
-
-        for file in files {
+        // Filter valid exercise files before entering the task group
+        let validFiles = files.compactMap { file -> (String, URL)? in
             guard let fileName = file["name"] as? String,
                   fileName.hasSuffix(".json"),
-                  let downloadURL = file["download_url"] as? String else { continue }
+                  let downloadURLString = file["download_url"] as? String,
+                  let downloadURL = URL(string: downloadURLString) else { return nil }
+            return (fileName, downloadURL)
+        }
 
-            let (exerciseData, _) = try await URLSession.shared.data(from: URL(string: downloadURL)!)
-            let exercise = try JSONDecoder().decode(ExerciseData.self, from: exerciseData)
-            exercises[exercise.id] = exercise
+        var exercises: [String: ExerciseData] = [:]
 
-            // Cache the individual exercise file
-            let cacheURL = exercisesCacheDir.appendingPathComponent(fileName)
-            try exerciseData.write(to: cacheURL)
+        try await withThrowingTaskGroup(of: (String, ExerciseData)?.self) { group in
+            for (fileName, downloadURL) in validFiles {
+                let cacheDir = self.exercisesCacheDir
+                let session = self.session
+                group.addTask {
+                    let (exerciseData, _) = try await session.data(from: downloadURL)
+                    let exercise = try JSONDecoder().decode(ExerciseData.self, from: exerciseData)
+
+                    // Cache the individual exercise file
+                    let cacheURL = cacheDir.appendingPathComponent(fileName)
+                    try exerciseData.write(to: cacheURL)
+
+                    return (exercise.id, exercise)
+                }
+            }
+            for try await result in group {
+                if let (id, exercise) = result {
+                    exercises[id] = exercise
+                }
+            }
         }
 
         return exercises
@@ -324,27 +380,44 @@ class GitHubContentService: ObservableObject {
     // Helper: Download and cache all workout files individually
     private func downloadAndCacheWorkoutFiles() async throws -> [WorkoutReference] {
         let apiURL = URL(string: "\(AppConfig.githubAPIBaseURL)/contents/\(AppConfig.contentFolder)/workouts")!
-        let (data, _) = try await URLSession.shared.data(from: apiURL)
+        let (data, _) = try await session.data(from: apiURL)
 
         guard let files = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             throw NSError(domain: "GitHubContentService", code: 5,
                          userInfo: [NSLocalizedDescriptionKey: "Failed to list workout files"])
         }
 
-        var workoutRefs: [WorkoutReference] = []
-
-        for file in files {
+        // Filter valid workout files before entering the task group
+        let validFiles = files.compactMap { file -> (String, URL)? in
             guard let fileName = file["name"] as? String,
                   fileName.hasSuffix(".json"),
-                  let downloadURL = file["download_url"] as? String else { continue }
+                  let downloadURLString = file["download_url"] as? String,
+                  let downloadURL = URL(string: downloadURLString) else { return nil }
+            return (fileName, downloadURL)
+        }
 
-            let (workoutData, _) = try await URLSession.shared.data(from: URL(string: downloadURL)!)
-            let workoutRef = try JSONDecoder().decode(WorkoutReference.self, from: workoutData)
-            workoutRefs.append(workoutRef)
+        var workoutRefs: [WorkoutReference] = []
 
-            // Cache the individual workout file
-            let cacheURL = workoutsCacheDir.appendingPathComponent(fileName)
-            try workoutData.write(to: cacheURL)
+        try await withThrowingTaskGroup(of: WorkoutReference?.self) { group in
+            for (fileName, downloadURL) in validFiles {
+                let cacheDir = self.workoutsCacheDir
+                let session = self.session
+                group.addTask {
+                    let (workoutData, _) = try await session.data(from: downloadURL)
+                    let workoutRef = try JSONDecoder().decode(WorkoutReference.self, from: workoutData)
+
+                    // Cache the individual workout file
+                    let cacheURL = cacheDir.appendingPathComponent(fileName)
+                    try workoutData.write(to: cacheURL)
+
+                    return workoutRef
+                }
+            }
+            for try await result in group {
+                if let workoutRef = result {
+                    workoutRefs.append(workoutRef)
+                }
+            }
         }
 
         return workoutRefs
@@ -374,8 +447,8 @@ class GitHubContentService: ObservableObject {
     private func getLatestContentVersion() async throws -> String {
         // Use GitHub API to get the latest commit SHA of the main branch
         let apiURL = URL(string: "\(AppConfig.githubAPIBaseURL)/branches/\(branch)")!
-        let (data, _) = try await URLSession.shared.data(from: apiURL)
-        
+        let (data, _) = try await session.data(from: apiURL)
+
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
            let commit = json["commit"] as? [String: Any],
            let sha = commit["sha"] as? String {

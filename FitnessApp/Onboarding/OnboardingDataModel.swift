@@ -79,68 +79,51 @@ struct OnboardingCard: Codable, Identifiable {
 
 // MARK: - Data Loader
 
-class OnboardingDataLoader: ObservableObject {
+@MainActor
+final class OnboardingDataLoader: ObservableObject {
     @Published var data: OnboardingData?
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
     private let githubBaseURL = AppConfig.contentBaseURL
+    private var hasLoaded = false
 
-    init() {
-        loadOnboardingData()
+    func loadOnboardingDataIfNeeded() async {
+        guard !hasLoaded else { return }
+        await loadOnboardingData()
     }
 
-    private func loadOnboardingData() {
-        // Try loading from local bundle first as fallback
-        if let bundleData = loadFromBundle() {
-            self.data = bundleData
-        }
+    func loadOnboardingData() async {
+        guard !isLoading else { return }
 
-        // Then load from GitHub for latest content
-        loadFromGitHub()
-    }
-
-    private func loadFromBundle() -> OnboardingData? {
-        guard let url = Bundle.main.url(forResource: "onboarding", withExtension: "json") else {
-            print("Could not find local onboarding.json")
-            return nil
-        }
+        isLoading = true
+        errorMessage = nil
 
         do {
-            let data = try Data(contentsOf: url)
-            return try JSONDecoder().decode(OnboardingData.self, from: data)
+            var components = URLComponents(string: "\(githubBaseURL)/onboarding.json")
+            components?.queryItems = [
+                URLQueryItem(name: "cache", value: String(Int(Date().timeIntervalSince1970)))
+            ]
+
+            guard let url = components?.url else {
+                throw URLError(.badURL)
+            }
+
+            let (payload, response) = try await URLSession.shared.data(from: url)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+
+            data = try JSONDecoder().decode(OnboardingData.self, from: payload)
+            hasLoaded = true
+            print("Successfully loaded onboarding data from GitHub")
         } catch {
-            print("Error loading local onboarding data: \(error)")
-            return nil
-        }
-    }
-
-    private func loadFromGitHub() {
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let urlString = "\(githubBaseURL)/onboarding.json?cache=\(timestamp)"
-
-        guard let url = URL(string: urlString) else {
-            print("Invalid GitHub onboarding URL")
-            return
+            errorMessage = "Unable to load onboarding right now."
+            print("Error fetching onboarding data from GitHub: \(error)")
         }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            if let error = error {
-                print("Error fetching onboarding data from GitHub: \(error)")
-                return
-            }
-
-            guard let data = data else {
-                print("No onboarding data received from GitHub")
-                return
-            }
-
-            do {
-                let onboardingData = try JSONDecoder().decode(OnboardingData.self, from: data)
-                DispatchQueue.main.async {
-                    self?.data = onboardingData
-                    print("Successfully loaded onboarding data from GitHub")
-                }
-            } catch {
-                print("Error decoding GitHub onboarding data: \(error)")
-            }
-        }.resume()
+        isLoading = false
     }
 }

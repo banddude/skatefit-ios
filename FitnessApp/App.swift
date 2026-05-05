@@ -1,10 +1,3 @@
-//
-//  App.swift
-//  Fitness App
-//
-//  Created by Mike Shaffer on 4/23/25.
-//
-
 import SwiftUI
 
 @main
@@ -12,50 +5,37 @@ struct FitnessApp: App {
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var onboardingManager = OnboardingManager.shared
     @StateObject private var contentManager = ContentManager.shared
-    @State private var isShowingSplash = true
     @State private var showOnboarding = false
-    
+
     var body: some Scene {
         WindowGroup {
-            if isShowingSplash {
-                SplashView()
-                    .environmentObject(themeManager)
-                    .preferredColorScheme(themeManager.colorScheme)
-                    .onAppear {
-                        // Initialize content and hide splash screen
-                        Task {
-                            await contentManager.initializeContent()
-                            
-                            // Download all videos in background for seamless experience
-                            contentManager.downloadAllVideos()
-                            
-                            // Hide splash screen after content is ready (or after 3 seconds max)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                withAnimation {
-                                    self.isShowingSplash = false
-                                    // Show onboarding if not completed
-                                    if !onboardingManager.isOnboardingCompleted {
-                                        self.showOnboarding = true
-                                    }
-                                }
-                            }
+            MainTabView()
+                .environmentObject(themeManager)
+                .environmentObject(contentManager)
+                .preferredColorScheme(themeManager.colorScheme)
+                .onAppear {
+                    Task {
+                        await contentManager.initializeContent()
+
+                        // Start background video download for all exercises
+                        let allVideos = contentManager.workoutContainers.flatMap { workout in
+                            workout.exercises.compactMap { $0.videoFile }
+                        }
+                        VideoDownloadQueue.shared.queueAll(fileNames: allVideos)
+
+                        if !onboardingManager.isOnboardingCompleted {
+                            showOnboarding = true
                         }
                     }
-            } else {
-                MainTabView()
-                    .environmentObject(themeManager)
-                    .environmentObject(contentManager)
-                    .preferredColorScheme(themeManager.colorScheme)
-                    .fullScreenCover(isPresented: $showOnboarding) {
-                        OnboardingView()
-                            .environmentObject(themeManager)
-                    }
-            }
+                }
+                .fullScreenCover(isPresented: $showOnboarding) {
+                    OnboardingView()
+                        .environmentObject(themeManager)
+                }
         }
     }
 }
 
-// Main View - Just Workouts
 struct MainTabView: View {
     var body: some View {
         WorkoutsView()

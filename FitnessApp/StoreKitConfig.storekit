@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>storekit.testing.environment</key>
+	<integer>2</integer>
+	<key>products</key>
+	<array>
+		<dict>
+			<key>id</key>
+			<string>com.mikeshaffer.skatefit.tip_redbull</string>
+			<key>name</key>
+			<string>Red Bull</string>
+			<key>displayPrice</key>
+			<string>$0.99</string>
+			<key>price</key>
+			<real>0.99</real>
+			<key>type</key>
+			<string>Consumable</string>
+		</dict>
+		<dict>
+			<key>id</key>
+			<string>com.mikeshaffer.skatefit.tip_oatlatte</string>
+			<key>name</key>
+			<string>Iced Oat Latte</string>
+			<key>displayPrice</key>
+			<string>$4.99</string>
+			<key>price</key>
+			<real>4.99</real>
+			<key>type</key>
+			<string>Consumable</string>
+		</dict>
+		<dict>
+			<key>id</key>
+			<string>com.mikeshaffer.skatefit.tip_sparechange</string>
+			<key>name</key>
+			<string>Spare Change</string>
+			<key>displayPrice</key>
+			<string>$9.99</string>
+			<key>price</key>
+			<real>9.99</real>
+			<key>type</key>
+			<string>Consumable</string>
+		</dict>
+		<dict>
+			<key>id</key>
+			<string>com.mikeshaffer.skatefit.tip_redbull_monthly</string>
+			<key>name</key>
+			<string>Red Bull Monthly</string>
+			<key>displayPrice</key>
+			<string>$0.99</string>
+			<key>price</key>
+			<real>0.99</real>
+			<key>recurringSubscriptionPeriod</key>
+			<string>P1M</string>
+			<key>type</key>
+			<string>RecurringSubscription</string>
+		</dict>
+		<dict>
+			<key>id</key>
+			<string>com.mikeshaffer.skatefit.tip_oatlatte_monthly</string>
+			<key>name</key>
+			<string>Iced Oat Latte Monthly</string>
+			<key>displayPrice</key>
+			<string>$4.99</string>
+			<key>price</key>
+			<real>4.99</real>
+			<key>recurringSubscriptionPeriod</key>
+			<string>P1M</string>
+			<key>type</key>
+			<string>RecurringSubscription</string>
+		</dict>
+		<dict>
+			<key>id</key>
+			<string>com.mikeshaffer.skatefit.tip_sparechange_monthly</string>
+			<key>name</key>
+			<string>Spare Change Monthly</string>
+			<key>displayPrice</key>
+			<string>$9.99</string>
+			<key>price</key>
+			<real>9.99</real>
+			<key>recurringSubscriptionPeriod</key>
+			<string>P1M</string>
+			<key>type</key>
+			<string>RecurringSubscription</string>
+		</dict>
+	</array>
+</dict>
+</plist>

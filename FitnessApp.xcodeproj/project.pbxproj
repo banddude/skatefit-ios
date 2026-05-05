@@ -17,6 +17,10 @@
 		43893D4CB9A3423693E92A6E /* OnboardingDataModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADAB1584685448DD86E565BE /* OnboardingDataModel.swift */; };
 		4AD9E0C8A2BA4276A5469C20 /* OnboardingTemplateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA6DD3F81F9F418B803C7515 /* OnboardingTemplateView.swift */; };
 		4B358F70A4BC4B4D8A0100BD /* WorkoutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0734034DEBD1465192878116 /* WorkoutsView.swift */; };
+		C1F2E3D4B59678870011223A /* NeonTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A2C3D4E5F606071829304B /* NeonTheme.swift */; };
+		D1A2C3D4E5F606071829304C /* NeonIconCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1B2C3D4E5F606071829304D /* NeonIconCircle.swift */; };
+		E1A2C3D4E5F606071829304C /* VideoDownloadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B2C3D4E5F606071829304D /* VideoDownloadQueue.swift */; };
+		E9A1B2C3D4E5F6071829304A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9A1B2C3D4E5F6071829304B /* PrivacyInfo.xcprivacy */; };
 		4B38ABF2A8054771BB4794BE /* SectionStyling.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECCC44F36FF423E92EA948C /* SectionStyling.swift */; };
 		4EBADB82C7274CFFB7AEFB63 /* DifficultyExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F40697F8A3D438B9F3F82A4 /* DifficultyExplanationView.swift */; };
 		576ADFA9C1A4436A93CA62AD /* WorkoutDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD655450262F41009B485201 /* WorkoutDetailView.swift */; };
@@ -32,11 +36,19 @@
 		E17C73E02EABFBA200A79431 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17C73DF2EABFBA200A79431 /* Extensions.swift */; };
 		F2EAA049E33E4F8C8663845E /* VideoTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADC78EA01058426DBCCCC4B6 /* VideoTutorialView.swift */; };
 		F904E153E51F47CB8FBBBF60 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F1B3FF22A94DF78F49B937 /* NetworkService.swift */; };
+		A8C4D2E6F0B13A5C7D9E2F14 /* TipJarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A3B1C9D2E84A5F6B0D1E23 /* TipJarManager.swift */; };
+		C0E6F4A8B2D35C7E9F1A4B36 /* TipJarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D5E3F7A1C24B6D8E0F3A25 /* TipJarView.swift */; };
+	B8D4E2F1C5A69B7013245678 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F3B2C1D4E85A6F91023B47 /* HealthKitManager.swift */; };
+	D1F6A4B3C7E8D90245367890 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E5F3A2B6D7C80134256789 /* SettingsView.swift */; };
+	F3B8C6D5E9A0F12467589012 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2A7B5C4D8F9E01356478901 /* HealthKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		05825580764E4A9D951D32E5 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		0734034DEBD1465192878116 /* WorkoutsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutsView.swift; sourceTree = "<group>"; };
+		B1A2C3D4E5F606071829304B /* NeonTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeonTheme.swift; sourceTree = "<group>"; };
+		D1B2C3D4E5F606071829304D /* NeonIconCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeonIconCircle.swift; sourceTree = "<group>"; };
+		E1B2C3D4E5F606071829304D /* VideoDownloadQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoDownloadQueue.swift; sourceTree = "<group>"; };
 		1AE1ED84DDF94FF79875C02A /* VideoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoService.swift; sourceTree = "<group>"; };
 		1C30D224F4F04080BA8E9653 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		31005431AF5341F5BCAA5E16 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -44,11 +56,12 @@
 		4F007FEEFC7D4FC4AC2632AC /* EquipmentOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentOverviewView.swift; sourceTree = "<group>"; };
 		4F40697F8A3D438B9F3F82A4 /* DifficultyExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DifficultyExplanationView.swift; sourceTree = "<group>"; };
 		68D18B2728154C52AE51EF38 /* WorkoutVideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutVideoPlayerView.swift; sourceTree = "<group>"; };
-		6E13F27D4A284489897A6052 /* FitnessApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E13F27D4A284489897A6052 /* skatefit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = skatefit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E4B1FA5A2C9416D90813BEF /* GitHubContentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubContentService.swift; sourceTree = "<group>"; };
 		87A02ABD532A4B78B377BC2F /* ContentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentManager.swift; sourceTree = "<group>"; };
 		8E958E40FA8A47508DF2EB65 /* OnboardingGesturesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingGesturesView.swift; sourceTree = "<group>"; };
 		9F3CFCECA1A04CB1A347F159 /* OnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingManager.swift; sourceTree = "<group>"; };
+		E9A1B2C3D4E5F6071829304B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A08615576E1B43C789EF8446 /* OnboardingWelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWelcomeView.swift; sourceTree = "<group>"; };
 		A4F1B3FF22A94DF78F49B937 /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
 		AD2C53638CC446C2916DC2C1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -62,6 +75,11 @@
 		E14F5C352EAB22FA00B9C765 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		E17C73DF2EABFBA200A79431 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		F01BAF10445441A4A0952E96 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		F7A3B1C9D2E84A5F6B0D1E23 /* TipJarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipJarManager.swift; sourceTree = "<group>"; };
+		B9D5E3F7A1C24B6D8E0F3A25 /* TipJarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipJarView.swift; sourceTree = "<group>"; };
+	A7F3B2C1D4E85A6F91023B47 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+	C9E5F3A2B6D7C80134256789 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+	E2A7B5C4D8F9E01356478901 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +87,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F3B8C6D5E9A0F12467589012 /* HealthKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -116,10 +135,18 @@
 				CD655450262F41009B485201 /* WorkoutDetailView.swift */,
 				D8F9D6BEAAF843A2953C8559 /* WorkoutPlayerView.swift */,
 				0734034DEBD1465192878116 /* WorkoutsView.swift */,
+				B1A2C3D4E5F606071829304B /* NeonTheme.swift */,
+				D1B2C3D4E5F606071829304D /* NeonIconCircle.swift */,
+				E1B2C3D4E5F606071829304D /* VideoDownloadQueue.swift */,
 				68D18B2728154C52AE51EF38 /* WorkoutVideoPlayerView.swift */,
 				5B25E85490884644AC59247E /* Onboarding */,
 				AD2C53638CC446C2916DC2C1 /* Assets.xcassets */,
 				31005431AF5341F5BCAA5E16 /* Info.plist */,
+				E9A1B2C3D4E5F6071829304B /* PrivacyInfo.xcprivacy */,
+				F7A3B1C9D2E84A5F6B0D1E23 /* TipJarManager.swift */,
+				B9D5E3F7A1C24B6D8E0F3A25 /* TipJarView.swift */,
+				A7F3B2C1D4E85A6F91023B47 /* HealthKitManager.swift */,
+				C9E5F3A2B6D7C80134256789 /* SettingsView.swift */,
 			);
 			path = FitnessApp;
 			sourceTree = "<group>";
@@ -127,7 +154,7 @@
 		BAC8BB6271724AC2AAA26FF3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6E13F27D4A284489897A6052 /* FitnessApp.app */,
+				6E13F27D4A284489897A6052 /* skatefit.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -148,8 +175,8 @@
 			dependencies = (
 			);
 			name = FitnessApp;
-			productName = FitnessApp;
-			productReference = 6E13F27D4A284489897A6052 /* FitnessApp.app */;
+			productName = skatefit;
+			productReference = 6E13F27D4A284489897A6052 /* skatefit.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -191,6 +218,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5BC5BEF52CFF4D4EBB94552B /* Assets.xcassets in Resources */,
+				E9A1B2C3D4E5F6071829304A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +242,9 @@
 				576ADFA9C1A4436A93CA62AD /* WorkoutDetailView.swift in Sources */,
 				9D0504B95C7F42D9A29F5A2E /* WorkoutPlayerView.swift in Sources */,
 				4B358F70A4BC4B4D8A0100BD /* WorkoutsView.swift in Sources */,
+				C1F2E3D4B59678870011223A /* NeonTheme.swift in Sources */,
+				D1A2C3D4E5F606071829304C /* NeonIconCircle.swift in Sources */,
+				E1A2C3D4E5F606071829304C /* VideoDownloadQueue.swift in Sources */,
 				3D62BFA5DF6B4D17B4A5D521 /* WorkoutVideoPlayerView.swift in Sources */,
 				4EBADB82C7274CFFB7AEFB63 /* DifficultyExplanationView.swift in Sources */,
 				CEC3D0BBE3A14C61B484AB55 /* EquipmentOverviewView.swift in Sources */,
@@ -225,6 +256,10 @@
 				0D7E7E24FF5243C5A0B40C39 /* OnboardingView.swift in Sources */,
 				A57C295E296E49099038F746 /* OnboardingWelcomeView.swift in Sources */,
 				F2EAA049E33E4F8C8663845E /* VideoTutorialView.swift in Sources */,
+				A8C4D2E6F0B13A5C7D9E2F14 /* TipJarManager.swift in Sources */,
+				C0E6F4A8B2D35C7E9F1A4B36 /* TipJarView.swift in Sources */,
+				B8D4E2F1C5A69B7013245678 /* HealthKitManager.swift in Sources */,
+				D1F6A4B3C7E8D90245367890 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -294,12 +329,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FitnessApp/FitnessApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "FitnessApp/Preview\\ Content";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SkateFit;
+				INFOPLIST_KEY_CFBundleName = SkateFit;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -308,9 +346,9 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.FitnessApp.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mikeshaffer.skatefit;
+				PRODUCT_NAME = skatefit;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -386,12 +424,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FitnessApp/FitnessApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "FitnessApp/Preview\\ Content";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SkateFit;
+				INFOPLIST_KEY_CFBundleName = SkateFit;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -400,9 +441,9 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.FitnessApp.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mikeshaffer.skatefit;
+				PRODUCT_NAME = skatefit;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -3,17 +3,12 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var onboardingManager = OnboardingManager.shared
+    @StateObject private var dataLoader = OnboardingDataLoader()
     @State private var currentPage = 0
     @State private var dragOffset: CGFloat = 0
 
-    private let pages = [
-        AnyView(OnboardingWelcomeView()),
-        AnyView(DifficultyExplanationView()),
-        AnyView(EquipmentOverviewView()),
-        AnyView(VideoTutorialView())
-    ]
-
-    private let progressColors: [Color] = [.accentColor, .mint, .purple, .orange]
+    private let progressColors: [Color] = [Neon.cyan, Neon.amber, Neon.magenta, Neon.violet]
+    private let pageCount = 4
 
     private var pageAccent: Color {
         progressColors[min(currentPage, progressColors.count - 1)]
@@ -31,42 +26,48 @@ struct OnboardingView: View {
                 endPoint: .center
             )
             .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.4), value: currentPage)
+            .animation(Neon.Anim.reveal, value: currentPage)
 
             VStack(spacing: 0) {
-                // Progress bar
-                HStack(spacing: 6) {
-                    ForEach(0..<pages.count, id: \.self) { index in
-                        Capsule()
-                            .fill(
-                                index <= currentPage
-                                ? AnyShapeStyle(
-                                    LinearGradient(
-                                        colors: [
-                                            progressColors[index],
-                                            progressColors[index].opacity(0.55)
-                                        ],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
+                if let onboarding = dataLoader.data?.onboarding {
+                    HStack(spacing: Neon.Space.sm) {
+                        ForEach(0..<pageCount, id: \.self) { index in
+                            Capsule()
+                                .fill(
+                                    index <= currentPage
+                                    ? AnyShapeStyle(
+                                        LinearGradient(
+                                            colors: [
+                                                progressColors[index],
+                                                progressColors[index].opacity(0.55)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
                                     )
+                                    : AnyShapeStyle(Color.white.opacity(0.12))
                                 )
-                                : AnyShapeStyle(Color.white.opacity(0.12))
-                            )
-                            .frame(height: 4)
-                            .animation(.easeInOut(duration: 0.3), value: currentPage)
+                                .frame(height: 4)
+                                .animation(Neon.Anim.standard, value: currentPage)
+                        }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                    .padding(.horizontal, Neon.Space.xl)
+                    .padding(.top, Neon.Space.md)
 
-                // Page content
-                TabView(selection: $currentPage) {
-                    ForEach(0..<pages.count, id: \.self) { index in
-                        pages[index]
-                            .tag(index)
+                    TabView(selection: $currentPage) {
+                        OnboardingWelcomeView(welcomeData: onboarding.welcome)
+                            .tag(0)
+                        DifficultyExplanationView(difficultyData: onboarding.difficulty)
+                            .tag(1)
+                        EquipmentOverviewView(equipmentData: onboarding.equipment)
+                            .tag(2)
+                        VideoTutorialView(tutorialData: onboarding.tutorial)
+                            .tag(3)
                     }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                } else {
+                    onboardingStateView
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             }
             .offset(y: dragOffset)
             .gesture(
@@ -80,81 +81,86 @@ struct OnboardingView: View {
                         if value.translation.height > 100 {
                             completeOnboarding()
                         } else {
-                            withAnimation(.spring()) {
+                            withAnimation(Neon.Anim.press) {
                                 dragOffset = 0
                             }
                         }
                     }
             )
 
-            // Floating navigation buttons
-            VStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    if currentPage > 0 {
-                        navButton(
-                            label: "Back",
-                            icon: "chevron.left",
-                            iconLeading: true,
-                            primary: false
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                currentPage -= 1
-                            }
-                        }
-                    } else {
-                        navButton(
-                            label: "Skip",
-                            icon: nil,
-                            iconLeading: false,
-                            primary: false
-                        ) {
-                            completeOnboarding()
-                        }
-                    }
-
+            if dataLoader.data != nil {
+                VStack {
                     Spacer()
-
-                    let isLast = currentPage == pages.count - 1
-                    navButton(
-                        label: isLast ? "Get Started" : "Next",
-                        icon: isLast ? "arrow.right" : "chevron.right",
-                        iconLeading: false,
-                        primary: true
-                    ) {
-                        if isLast {
-                            completeOnboarding()
+                    HStack(spacing: Neon.Space.md) {
+                        if currentPage > 0 {
+                            navButton(
+                                label: "Back",
+                                icon: "chevron.left",
+                                iconLeading: true,
+                                primary: false
+                            ) {
+                                withAnimation(Neon.Anim.quick) {
+                                    currentPage -= 1
+                                }
+                            }
                         } else {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                currentPage += 1
+                            navButton(
+                                label: "Skip",
+                                icon: nil,
+                                iconLeading: false,
+                                primary: false
+                            ) {
+                                completeOnboarding()
+                            }
+                        }
+
+                        Spacer()
+
+                        let isLast = currentPage == pageCount - 1
+                        navButton(
+                            label: isLast ? "Get Started" : "Next",
+                            icon: isLast ? "arrow.right" : "chevron.right",
+                            iconLeading: false,
+                            primary: true
+                        ) {
+                            if isLast {
+                                completeOnboarding()
+                            } else {
+                                withAnimation(Neon.Anim.quick) {
+                                    currentPage += 1
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, Neon.Space.xl)
+                    .padding(.bottom, Neon.Space.xxl)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 24)
             }
+        }
+        .task {
+            await dataLoader.loadOnboardingDataIfNeeded()
         }
     }
 
     @ViewBuilder
     private func navButton(label: String, icon: String?, iconLeading: Bool, primary: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: Neon.Space.sm) {
                 if iconLeading, let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Neon.font(13, .bold))
                 }
                 Text(label)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Neon.font(15, .bold))
                 if !iconLeading, let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Neon.font(13, .bold))
                 }
             }
             .foregroundColor(.white)
             .padding(.horizontal, 22)
             .padding(.vertical, 13)
+            .frame(minHeight: Neon.touchTarget)
             .background(
                 Group {
                     if primary {
@@ -177,10 +183,10 @@ struct OnboardingView: View {
                 Capsule()
                     .stroke(
                         primary ? Color.white.opacity(0.18) : Color.white.opacity(0.15),
-                        lineWidth: 1
+                        lineWidth: Neon.Stroke.thin
                     )
             )
-            .shadow(color: primary ? pageAccent.opacity(0.45) : .clear, radius: 12, x: 0, y: 5)
+            .shadow(color: primary ? pageAccent.opacity(Neon.Glow.muted) : .clear, radius: Neon.Glow.card, x: 0, y: 5)
         }
         .buttonStyle(PressableCardButtonStyle())
     }
@@ -189,8 +195,60 @@ struct OnboardingView: View {
         onboardingManager.completeOnboarding()
         dismiss()
     }
-}
 
-#Preview {
-    OnboardingView()
+    private var onboardingStateView: some View {
+        VStack(spacing: Neon.Space.lg) {
+            if let appIcon = AppConfig.getAppIcon() {
+                Image(uiImage: appIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 88, height: 88)
+                    .clipShape(RoundedRectangle(cornerRadius: Neon.Radius.large, style: .continuous))
+            }
+
+            if dataLoader.isLoading {
+                ProgressView()
+                    .tint(Neon.magenta)
+                Text("CONNECTING TO GITHUB")
+                    .font(Neon.font(13, .heavy))
+                    .foregroundColor(Neon.cyan)
+                    .tracking(2.5)
+            } else {
+                Text("ONBOARDING UNAVAILABLE")
+                    .font(Neon.font(15, .heavy))
+                    .foregroundColor(.white)
+                    .tracking(2)
+
+                Text(dataLoader.errorMessage ?? "Unable to load onboarding right now.")
+                    .font(Neon.font(12, .medium))
+                    .foregroundColor(Neon.textMid)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Neon.Space.xl)
+
+                HStack(spacing: Neon.Space.md) {
+                    navButton(
+                        label: "Skip",
+                        icon: nil,
+                        iconLeading: false,
+                        primary: false
+                    ) {
+                        completeOnboarding()
+                    }
+
+                    navButton(
+                        label: "Retry",
+                        icon: "arrow.clockwise",
+                        iconLeading: false,
+                        primary: true
+                    ) {
+                        Task {
+                            await dataLoader.loadOnboardingData()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, Neon.Space.xl)
+    }
 }

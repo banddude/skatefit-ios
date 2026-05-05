@@ -12,10 +12,10 @@ struct WorkoutSection {
 extension String {
     var sectionColor: Color {
         switch self {
-        case WorkoutSection.warmUp: return .orange
-        case WorkoutSection.main: return .purple
-        case WorkoutSection.coolDown: return .teal
-        default: return .gray
+        case WorkoutSection.warmUp: return Neon.amber
+        case WorkoutSection.main: return Neon.magenta
+        case WorkoutSection.coolDown: return Neon.cyan
+        default: return Neon.textLow
         }
     }
 

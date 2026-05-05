@@ -14,6 +14,10 @@ struct WorkoutPlayerView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @State private var currentExerciseIndex: Int
     @State private var showExerciseDetails = false
+    @State private var workoutStartDate = Date()
+    @State private var elapsedSeconds: TimeInterval = 0
+    @State private var timer: Timer?
+    @State private var showHealthKitToast = false
 
     init(workoutName: String, workoutColor: Color, difficulty: WorkoutDifficulty, exercises: [WorkoutExercise], startingIndex: Int, videoPreloader: VideoPreloader) {
         self.workoutName = workoutName
@@ -29,6 +33,8 @@ struct WorkoutPlayerView: View {
 
     var body: some View {
         ZStack {
+            Color.black.ignoresSafeArea()
+
             GeometryReader { geometry in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
@@ -39,7 +45,8 @@ struct WorkoutPlayerView: View {
                                 index: index,
                                 total: exercises.count,
                                 workoutName: workoutName,
-                                onDismiss: { dismiss() },
+                                elapsedText: elapsedText,
+                                onDismiss: { endWorkoutAndDismiss() },
                                 showExerciseDetails: $showExerciseDetails,
                                 player: videoPreloader.player(for: index)
                             )
@@ -51,9 +58,7 @@ struct WorkoutPlayerView: View {
                 }
                 .scrollTargetBehavior(.paging)
                 .scrollPosition(id: $scrolledID)
-                .onAppear {
-                    scrolledID = startingIndex
-                }
+                .onAppear { scrolledID = startingIndex }
                 .onChange(of: scrolledID) { _, newValue in
                     if let newValue = newValue {
                         currentExerciseIndex = newValue
@@ -62,7 +67,6 @@ struct WorkoutPlayerView: View {
             }
             .ignoresSafeArea(.all)
 
-            // Exercise Details Overlay
             if showExerciseDetails && currentExerciseIndex < exercises.count {
                 exerciseDetailsOverlay(for: exercises[currentExerciseIndex])
             }
@@ -70,248 +74,298 @@ struct WorkoutPlayerView: View {
         .gesture(
             DragGesture()
                 .onEnded { value in
-                    // If dragged down more than 100 points, dismiss
                     if value.translation.height > 100 {
-                        dismiss()
+                        endWorkoutAndDismiss()
                     }
                 }
         )
+        .onAppear {
+            workoutStartDate = Date()
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                Task { @MainActor in
+                    elapsedSeconds += 1
+                }
+            }
+        }
+        .overlay {
+            if showHealthKitToast {
+                healthKitToast
+            }
+        }
     }
-    
-    // MARK: - Exercise Details Overlay
+
+    private var difficultyAccent: Color {
+        switch difficulty {
+        case .beginner: return Neon.cyan
+        case .intermediate: return Neon.magenta
+        case .advanced: return Neon.lime
+        }
+    }
+
+    private var elapsedText: String {
+        let mins = Int(elapsedSeconds) / 60
+        let secs = Int(elapsedSeconds) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
+    private func endWorkoutAndDismiss() {
+        timer?.invalidate()
+        timer = nil
+
+        let endDate = Date()
+        if elapsedSeconds >= 60 {
+            Task {
+                await HealthKitManager.shared.saveWorkout(
+                    name: workoutName,
+                    difficulty: difficulty,
+                    exerciseCount: exercises.count,
+                    startDate: workoutStartDate,
+                    endDate: endDate
+                )
+                withAnimation { showHealthKitToast = true }
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                dismiss()
+            }
+        } else {
+            dismiss()
+        }
+    }
+
+    private var healthKitToast: some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "heart.circle.fill")
+                    .foregroundColor(Neon.lime)
+                Text("Saved to Apple Health")
+                    .font(Neon.font(12, .bold))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Capsule().fill(Neon.bgDeep).overlay(Capsule().stroke(Neon.lime.opacity(0.5), lineWidth: 1)))
+            .neonGlow(Neon.lime, radius: Neon.Glow.card, opacity: 0.4)
+            .padding(.bottom, 60)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        .animation(Neon.Anim.standard, value: showHealthKitToast)
+    }
+
     private func exerciseDetailsOverlay(for exercise: WorkoutExercise) -> some View {
         ZStack {
-            // Semi-transparent background
-            Color.black.opacity(0.8)
+            Color.black.opacity(0.85)
                 .ignoresSafeArea(.all)
                 .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Neon.Anim.quick) {
                         showExerciseDetails = false
                     }
                 }
-            
-            // Details card
-            VStack(spacing: 20) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(exercise.section)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fontWeight(.medium)
-                        
-                        Text(exercise.move)
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
+
+            VStack(spacing: 0) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(exercise.section.uppercased())
+                            .font(Neon.font(10, .heavy))
+                            .foregroundColor(.white)
+                            .tracking(2)
+                            .padding(.horizontal, Neon.Space.sm)
+                            .padding(.vertical, 3)
+                            .overlay(Capsule().stroke(exercise.section.sectionColor.opacity(Neon.Stroke.strong), lineWidth: Neon.Stroke.thin))
+                            .background(Capsule().fill(exercise.section.sectionColor.opacity(0.18)))
+
+                        NeonGradientText(
+                            text: exercise.move.replacingOccurrences(of: "-", with: " ").uppercased(),
+                            size: 18,
+                            weight: .heavy,
+                            tracking: 1.0
+                        )
+                        .lineLimit(2)
                     }
-                    
+
                     Spacer()
-                    
+
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        withAnimation(Neon.Anim.quick) {
                             showExerciseDetails = false
                         }
                     }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
+                        Image(systemName: "xmark")
+                            .font(Neon.font(14, .heavy))
+                            .foregroundColor(.white)
+                            .frame(width: Neon.touchTarget, height: Neon.touchTarget)
+                            .background(Circle().fill(Neon.bg))
+                            .overlay(Circle().stroke(Neon.magenta.opacity(Neon.Stroke.strong), lineWidth: Neon.Stroke.thin))
+                            .neonGlow(Neon.magenta, radius: Neon.Glow.card, opacity: Neon.Glow.standard)
                     }
                 }
-                
-                // Exercise details content
+                .padding(Neon.Space.lg)
+
+                Rectangle()
+                    .fill(LinearGradient(colors: [Neon.magenta.opacity(0.6), Neon.violet.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
+                    .frame(height: 1)
+
                 ScrollView {
                     exerciseDetailsContent(exercise: exercise)
+                        .padding(Neon.Space.lg)
                 }
             }
-            .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(UIColor.systemBackground))
-                    .shadow(color: .black.opacity(0.3), radius: 20)
+            .background(Neon.bg)
+            .clipShape(RoundedRectangle(cornerRadius: Neon.Radius.large, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Neon.Radius.large, style: .continuous)
+                    .stroke(
+                        LinearGradient(colors: [Neon.magenta, Neon.violet], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: Neon.Stroke.medium
+                    )
             )
-            .padding(20)
+            .shadow(color: Neon.magenta.opacity(0.6), radius: Neon.Glow.hero, x: 0, y: 0)
+            .padding(Neon.Space.xl)
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+        .transition(.opacity)
     }
-    
-    // MARK: - Exercise Details Content
+
     private func exerciseDetailsContent(exercise: WorkoutExercise) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Brief Description
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Overview")
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-                
+        VStack(alignment: .leading, spacing: Neon.Space.lg) {
+            infoSection(title: "OVERVIEW", icon: "doc.text.fill", color: Neon.cyan) {
                 Text(exercise.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .font(Neon.font(13, .medium))
+                    .foregroundColor(Neon.textHi)
+                    .lineSpacing(3)
             }
-            
-            // Detailed Description (if available)
+
             if let detailedDescription = exercise.detailedDescription, !detailedDescription.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Detailed Guide")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    
+                infoSection(title: "GUIDE", icon: "book.fill", color: Neon.purple) {
                     Text(detailedDescription)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .font(Neon.font(13, .medium))
+                        .foregroundColor(Neon.textHi)
+                        .lineSpacing(3)
                 }
             }
-            
-            // Instructions for current difficulty
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Instructions (\(difficulty.displayName))")
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-                
-                HStack {
-                    Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.caption)
-                        .foregroundColor(difficulty.color)
-                    
-                    Text(exercise.instructions(for: difficulty))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+
+            infoSection(title: "INSTRUCTIONS", icon: "list.number", color: difficultyAccent) {
+                Text(exercise.instructions(for: difficulty))
+                    .font(Neon.font(14, .bold))
+                    .foregroundColor(.white)
             }
-            
+
             exerciseAdditionalInfo(exercise: exercise)
         }
     }
-    
-    // MARK: - Additional Exercise Info
+
+    private func infoSection<C: View>(title: String, icon: String, color: Color, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: Neon.Space.sm) {
+            HStack(spacing: Neon.Space.sm) {
+                Image(systemName: icon)
+                    .font(Neon.font(11, .heavy))
+                    .foregroundColor(color)
+                    .neonGlow(color, radius: 6, opacity: Neon.Stroke.strong)
+                Text(title)
+                    .font(Neon.font(11, .heavy))
+                    .foregroundColor(color)
+                    .tracking(2)
+            }
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Neon.Space.md)
+                .background(
+                    RoundedRectangle(cornerRadius: Neon.Radius.small, style: .continuous).fill(Neon.panel)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Neon.Radius.small, style: .continuous)
+                        .stroke(color.opacity(0.45), lineWidth: Neon.Stroke.thin)
+                )
+        }
+    }
+
     private func exerciseAdditionalInfo(exercise: WorkoutExercise) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Equipment
+        VStack(alignment: .leading, spacing: Neon.Space.lg) {
             if let equipment = exercise.equipment, !equipment.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Equipment")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .fontWeight(.semibold)
-
-                    ForEach(equipment, id: \.self) { item in
-                        HStack(spacing: 6) {
-                            Image(systemName: "wrench.and.screwdriver")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
-                            Text(item.capitalized)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                infoSection(title: "EQUIPMENT", icon: "wrench.and.screwdriver.fill", color: Neon.amber) {
+                    chipFlow(items: equipment, color: Neon.amber)
                 }
             }
-
-            // Target Muscles
             if let muscles = exercise.targetMuscles, !muscles.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Target Muscles")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .fontWeight(.semibold)
-
-                    ForEach(muscles, id: \.self) { muscle in
-                        HStack(spacing: 6) {
-                            Image(systemName: "figure.strengthtraining.traditional")
-                                .font(.caption2)
-                                .foregroundColor(.red)
-                            Text(muscle.capitalized)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                infoSection(title: "MUSCLES", icon: "figure.strengthtraining.traditional", color: Neon.magenta) {
+                    chipFlow(items: muscles, color: Neon.magenta)
                 }
             }
-
-            // Benefit
             if let benefit = exercise.benefit, !benefit.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Benefit")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .fontWeight(.semibold)
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "star.fill")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                        Text(benefit)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                infoSection(title: "BENEFIT", icon: "star.fill", color: Neon.lime) {
+                    Text(benefit)
+                        .font(Neon.font(13, .medium))
+                        .foregroundColor(Neon.textHi)
+                        .lineSpacing(2)
                 }
             }
-
-            // Duration per rep
             if let duration = exercise.durationPerRep, !duration.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Duration")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .fontWeight(.semibold)
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "timer")
-                            .font(.caption2)
-                            .foregroundColor(.blue)
-                        Text(duration)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                infoSection(title: "DURATION", icon: "timer", color: Neon.cyan) {
+                    Text(duration)
+                        .font(Neon.font(13, .medium))
+                        .foregroundColor(Neon.textHi)
                 }
             }
-
-            // Exercise Type
             if let types = exercise.exerciseType, !types.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Exercise Type")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .fontWeight(.semibold)
-
-                    ForEach(types, id: \.self) { type in
-                        HStack(spacing: 6) {
-                            Image(systemName: "tag")
-                                .font(.caption2)
-                                .foregroundColor(.purple)
-                            Text(type.capitalized)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                infoSection(title: "TYPE", icon: "tag.fill", color: Neon.purple) {
+                    chipFlow(items: types, color: Neon.purple)
                 }
             }
         }
     }
-    
+
+    private func chipFlow(items: [String], color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(items, id: \.self) { item in
+                Text(item.uppercased())
+                    .font(Neon.font(11, .heavy))
+                    .foregroundColor(color)
+                    .tracking(1.2)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .overlay(Capsule().stroke(color.opacity(0.6), lineWidth: Neon.Stroke.thin))
+                    .background(Capsule().fill(color.opacity(0.12)))
+            }
+        }
+    }
 }
 
-// Simplified version of SingleExercisePlayerView for embedding
 struct SingleExercisePageView: View {
     let exercise: WorkoutExercise
     let difficulty: WorkoutDifficulty
     let index: Int
     let total: Int
     let workoutName: String
+    let elapsedText: String
     let onDismiss: () -> Void
     @Binding var showExerciseDetails: Bool
     let player: AVPlayer?
 
-    private var displayMove: String {
-        exercise.move.replacingOccurrences(of: "-", with: " ")
+    private let displayMove: String
+
+    init(exercise: WorkoutExercise, difficulty: WorkoutDifficulty, index: Int, total: Int, workoutName: String, elapsedText: String, onDismiss: @escaping () -> Void, showExerciseDetails: Binding<Bool>, player: AVPlayer?) {
+        self.exercise = exercise
+        self.difficulty = difficulty
+        self.index = index
+        self.total = total
+        self.workoutName = workoutName
+        self.elapsedText = elapsedText
+        self.onDismiss = onDismiss
+        self._showExerciseDetails = showExerciseDetails
+        self.player = player
+        self.displayMove = exercise.move.replacingOccurrences(of: "-", with: " ")
+        self._fallbackPlayer = State(initialValue: nil)
+        self._isLoadingVideo = State(initialValue: false)
     }
 
-    // Fallback player if preloaded one is nil
+    private var difficultyAccent: Color {
+        switch difficulty {
+        case .beginner: return Neon.cyan
+        case .intermediate: return Neon.magenta
+        case .advanced: return Neon.lime
+        }
+    }
+
     @State private var fallbackPlayer: AVPlayer?
+    @State private var isLoadingVideo = false
 
     private var activePlayer: AVPlayer? {
         player ?? fallbackPlayer
@@ -319,21 +373,20 @@ struct SingleExercisePageView: View {
 
     var body: some View {
         ZStack {
-            // Full screen background video using preloaded player
             GeometryReader { geometry in
                 if let player = activePlayer {
                     WorkoutVideoPlayerView(player: player)
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
                         .onLongPressGesture(minimumDuration: 0.5) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(Neon.Anim.standard) {
                                 showExerciseDetails.toggle()
                             }
                         }
                 } else {
-                    Color.black
+                    AppIconVideoPlaceholder(showSpinner: isLoadingVideo)
                         .onLongPressGesture(minimumDuration: 0.5) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(Neon.Anim.standard) {
                                 showExerciseDetails.toggle()
                             }
                         }
@@ -341,132 +394,162 @@ struct SingleExercisePageView: View {
             }
             .ignoresSafeArea(.all)
             .onAppear {
-                // Create fallback player if preloaded one is nil
                 if player == nil && fallbackPlayer == nil {
-                    if let url = exercise.getVideoURL() {
-                        let asset = AVURLAsset(url: url)
-                        let item = AVPlayerItem(asset: asset)
-                        item.preferredForwardBufferDuration = 2.0
-                        let newPlayer = AVPlayer(playerItem: item)
-                        newPlayer.isMuted = true
-                        newPlayer.automaticallyWaitsToMinimizeStalling = false
-                        fallbackPlayer = newPlayer
+                    isLoadingVideo = true
+                    Task {
+                        if let url = await VideoService.shared.getVideoURLAsync(for: exercise.videoFileName) {
+                            let asset = AVURLAsset(url: url)
+                            let item = AVPlayerItem(asset: asset)
+                            item.preferredForwardBufferDuration = 2.0
+                            let newPlayer = AVPlayer(playerItem: item)
+                            newPlayer.isMuted = true
+                            newPlayer.automaticallyWaitsToMinimizeStalling = false
+                            fallbackPlayer = newPlayer
+                        }
+                        isLoadingVideo = false
                     }
                 }
             }
 
-            // UI overlay that respects safe areas
-            VStack {
-                // Unified top section: workout name + Done, then progress + exercise title
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text(workoutName)
-                            .font(.headline)
-                            .fontWeight(.semibold)
+            VStack(spacing: 0) {
+                // TOP HUD
+                VStack(spacing: 14) {
+                    HStack(alignment: .center) {
+                        Text(workoutName.uppercased())
+                            .font(Neon.font(12, .heavy))
                             .foregroundColor(.white)
+                            .tracking(2)
+                            .padding(.horizontal, Neon.Space.md)
+                            .padding(.vertical, 6)
+                            .overlay(Capsule().stroke(Neon.magenta.opacity(0.6), lineWidth: Neon.Stroke.thin))
+                            .background(Capsule().fill(Neon.bg.opacity(0.6)))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.7)
+
+                        Text(elapsedText)
+                            .font(Neon.font(12, .heavy))
+                            .foregroundColor(Neon.cyan)
+                            .monospacedDigit()
+                            .padding(.horizontal, Neon.Space.sm)
+                            .padding(.vertical, 6)
+                            .overlay(Capsule().stroke(Neon.cyan.opacity(0.4), lineWidth: Neon.Stroke.thin))
+                            .background(Capsule().fill(Neon.bg.opacity(0.6)))
 
                         Spacer()
 
-                        Button("Done", action: onDismiss)
-                            .font(.body)
+                        Button(action: onDismiss) {
+                            HStack(spacing: Neon.Space.xs) {
+                                Image(systemName: "xmark")
+                                    .font(Neon.font(11, .heavy))
+                                Text("EXIT")
+                                    .font(Neon.font(11, .heavy))
+                                    .tracking(1.5)
+                            }
                             .foregroundColor(.white)
+                            .padding(.horizontal, Neon.Space.md)
+                            .padding(.vertical, Neon.Space.sm)
+                            .background(
+                                Capsule().fill(
+                                    LinearGradient(colors: [Neon.magenta, Neon.violet], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                            )
+                            .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: Neon.Stroke.thin))
+                            .shadow(color: Neon.magenta.opacity(0.6), radius: Neon.Glow.card, x: 0, y: 0)
+                            .frame(minWidth: Neon.touchTarget, minHeight: Neon.touchTarget)
+                        }
                     }
-
-                    HStack {
-                        Text("Exercise \(index + 1) of \(total)")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.9))
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-
-                    ProgressView(value: Double(index + 1) / Double(total))
-                        .tint(.white)
-                        .scaleEffect(y: 2)
-
-                    Text(displayMove)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .shadow(color: .black, radius: 2)
-                        .padding(.top, 4)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .padding(.horizontal)
-                .padding(.top, 60) // Safe area for status bar / Dynamic Island
-                .padding(.bottom, 12)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.black.opacity(0.7), Color.black.opacity(0.4), Color.clear]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                
-                Spacer()
-                
-                // Bottom UI
-                VStack(spacing: 16) {
-                    Text(exercise.description)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 26)
-                        .shadow(color: .black.opacity(0.7), radius: 3)
-                        .fixedSize(horizontal: false, vertical: true)
 
                     HStack(spacing: 10) {
-                        Image(systemName: "figure.strengthtraining.traditional")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(difficulty.color)
-
-                        Text(exercise.instructions(for: difficulty))
-                            .font(.system(size: 16, weight: .semibold))
+                        Text("\(index + 1)/\(total)")
+                            .font(Neon.font(12, .heavy))
                             .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, Neon.Space.xs)
+                            .background(Capsule().fill(Neon.bg.opacity(0.7)))
+                            .overlay(Capsule().stroke(difficultyAccent.opacity(Neon.Stroke.strong), lineWidth: Neon.Stroke.thin))
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.08))
+                                    .frame(height: Neon.Space.sm)
+                                    .overlay(
+                                        Capsule().stroke(Color.white.opacity(0.15), lineWidth: Neon.Stroke.thin)
+                                    )
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(colors: [difficultyAccent, Neon.magenta], startPoint: .leading, endPoint: .trailing)
+                                    )
+                                    .frame(width: max(Neon.Space.sm, geo.size.width * CGFloat(index + 1) / CGFloat(total)), height: Neon.Space.sm)
+                                    .shadow(color: difficultyAccent.opacity(Neon.Stroke.strong), radius: Neon.Space.sm, x: 0, y: 0)
+                            }
+                        }
+                        .frame(height: Neon.Space.sm)
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 14)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .stroke(difficulty.color.opacity(0.45), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
+
+                    Text(displayMove.uppercased())
+                        .font(Neon.font(22, .heavy))
+                        .foregroundColor(.white)
+                        .tracking(1.2)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity)
+                        .shadow(color: .black, radius: Neon.Space.xs, x: 0, y: 2)
+                        .padding(.top, 6)
                 }
-                .padding(.bottom, 50)
-                .padding(.top, 30)
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Neon.Space.lg)
+                .padding(.top, 56)
+                .padding(.bottom, 14)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.35), Color.black.opacity(0.85)]),
+                        colors: [Color.black.opacity(0.7), Color.black.opacity(0.3), Color.clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+                Spacer()
+
+                // BOTTOM HUD
+                Text(exercise.instructions(for: difficulty))
+                    .font(Neon.font(15, .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .shadow(color: .black, radius: 3)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: Neon.Radius.medium, style: .continuous).fill(Neon.bg.opacity(0.8))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Neon.Radius.medium, style: .continuous)
+                            .stroke(difficultyAccent.opacity(0.55), lineWidth: Neon.Stroke.thin)
+                    )
+                    .shadow(color: difficultyAccent.opacity(0.4), radius: Neon.Glow.card, x: 0, y: 0)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 38)
+                .padding(.top, Neon.Space.xxl)
+                .background(
+                    LinearGradient(
+                        colors: [Color.clear, Color.black.opacity(0.4), Color.black.opacity(0.85)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             }
-            
-            
         }
     }
-    
 }
 
-// MARK: - Video Preloader
-
-/// Preloads all AVPlayers for a workout's exercises
 class VideoPreloader: ObservableObject {
     @Published private(set) var isLoading = true
     @Published private(set) var loadedCount = 0
 
     private var players: [Int: AVPlayer] = [:]
+    private var videoURLs: [Int: URL] = [:]
     private let exercises: [WorkoutExercise]
     private var loadTask: Task<Void, Never>?
 
@@ -474,45 +557,67 @@ class VideoPreloader: ObservableObject {
         self.exercises = exercises
     }
 
-    /// Start loading all videos (call from WorkoutDetailView.onAppear)
     func startLoading() {
         guard loadTask == nil else { return }
 
         loadTask = Task {
-            // Load first video synchronously for immediate playback
-            if exercises.count > 0, let url = exercises[0].getVideoURL() {
-                let player = createPlayer(url: url)
-                await MainActor.run {
-                    players[0] = player
-                    loadedCount = 1
-                }
-            }
-
-            // Load rest in background
-            for index in 1..<exercises.count {
-                guard !Task.isCancelled else { break }
-
-                if let url = exercises[index].getVideoURL() {
+            // Load first video with priority
+            if exercises.count > 0 {
+                if let url = await VideoService.shared.getVideoURLAsync(for: exercises[0].videoFileName) {
                     let player = createPlayer(url: url)
                     await MainActor.run {
-                        players[index] = player
-                        loadedCount = index + 1
+                        self.videoURLs[0] = url
+                        players[0] = player
+                        loadedCount = 1
                     }
                 }
             }
 
-            await MainActor.run {
-                isLoading = false
+            // Load remaining videos in parallel (max 4 concurrent)
+            guard !Task.isCancelled else {
+                await MainActor.run { isLoading = false }
+                return
             }
+
+            let remaining = Array(1..<exercises.count)
+            let batchSize = 4
+            for batchStart in stride(from: 0, to: remaining.count, by: batchSize) {
+                guard !Task.isCancelled else { break }
+                let batch = remaining[batchStart..<min(batchStart + batchSize, remaining.count)]
+                await withTaskGroup(of: (Int, AVPlayer?, URL?).self) { group in
+                    for index in batch {
+                        let fileName = exercises[index].videoFileName
+                        group.addTask {
+                            guard !Task.isCancelled else { return (index, nil, nil) }
+                            if let url = await VideoService.shared.getVideoURLAsync(for: fileName) {
+                                return (index, self.createPlayer(url: url), url)
+                            }
+                            return (index, nil, nil)
+                        }
+                    }
+                    for await (index, player, url) in group {
+                        guard let player = player else { continue }
+                        await MainActor.run {
+                            if let url = url { self.videoURLs[index] = url }
+                            self.players[index] = player
+                            self.loadedCount = self.players.count
+                        }
+                    }
+                }
+            }
+
+            await MainActor.run { isLoading = false }
         }
     }
 
-    /// Get player for index (returns nil if not yet loaded)
     func player(for index: Int) -> AVPlayer? {
         players[index]
     }
 
-    /// Create a configured player
+    func videoURL(for index: Int) -> URL? {
+        videoURLs[index]
+    }
+
     private func createPlayer(url: URL) -> AVPlayer {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
@@ -525,7 +630,6 @@ class VideoPreloader: ObservableObject {
         return player
     }
 
-    /// Clean up all resources
     func cleanup() {
         loadTask?.cancel()
         loadTask = nil
@@ -535,6 +639,7 @@ class VideoPreloader: ObservableObject {
             player.replaceCurrentItem(with: nil)
         }
         players.removeAll()
+        videoURLs.removeAll()
     }
 
     deinit {

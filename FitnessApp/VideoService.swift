@@ -3,141 +3,117 @@ import AVFoundation
 
 class VideoService: ObservableObject {
     static let shared = VideoService()
-    
+
     private let gitHubContentService = GitHubContentService.shared
-    
+    private let defaults = UserDefaults.standard
+    private let videoVersionKey = "VideoCacheVersion"
+    private let videoVersionMapKey = "VideoVersionMap"
+
     private init() {}
-    
+
+    // MARK: - Public Methods
+
     func getVideoURL(for fileName: String) -> URL? {
-        // Priority 1: Check if video is cached from GitHub
-        let cacheDirectory = getCacheDirectory()
-        let cachedVideoURL = cacheDirectory.appendingPathComponent("videos").appendingPathComponent(fileName.hasSuffix(".mp4") ? fileName : "\(fileName).mp4")
-        
+        let cachedVideoURL = cacheURL(for: fileName)
+
         if FileManager.default.fileExists(atPath: cachedVideoURL.path) {
-            print("Using cached video from GitHub: \(fileName)")
             return cachedVideoURL
         }
-        
-        // Priority 2: Return placeholder and trigger background download
-        print("Video not available locally, will download: \(fileName)")
-        downloadVideoInBackground(fileName: fileName)
-        
-        return getPlaceholderVideoURL()
+
+        return getBundledVideoURL(for: fileName)
     }
-    
-    /// Async version for explicit remote video loading
+
     func getVideoURLAsync(for fileName: String) async -> URL? {
-        // First check cached
-        if let url = getVideoURL(for: fileName), 
-           url != getPlaceholderVideoURL() {
+        if let url = getVideoURL(for: fileName) {
+            // Check if this cached file is stale (content version changed)
+            if isVideoStale(fileName: fileName) {
+                if let freshURL = try? await gitHubContentService.downloadVideo(fileName: fileName) {
+                    markVideoCurrent(fileName: fileName)
+                    return freshURL
+                }
+            }
             return url
         }
-        
-        // Download from GitHub if needed
+
         do {
             let remoteURL = try await gitHubContentService.downloadVideo(fileName: fileName)
-            print("Downloaded video: \(fileName)")
+            markVideoCurrent(fileName: fileName)
             return remoteURL
         } catch {
             print("Failed to download video \(fileName): \(error)")
-            return getPlaceholderVideoURL()
+            return nil
         }
     }
-    
-    
-    private func getBundledVideoURL(for fileName: String) -> URL? {
-        print("Looking for video: \(fileName)")
-        
-        // Priority 1: Look for SDR H.264 versions first
-        if let url = Bundle.main.url(forResource: fileName, withExtension: "mp4", subdirectory: "sdr") {
-            print("Found SDR video: \(fileName).mp4 at \(url)")
-            return url
-        }
-        
-        // Priority 2: Look for .mp4 files in videos subdirectory
-        if let url = Bundle.main.url(forResource: fileName, withExtension: "mp4", subdirectory: "videos") {
-            print("Found video in videos folder: \(fileName).mp4 at \(url)")
-            return url
-        }
-        
-        // Priority 3: Look for .mp4 files in main bundle root
-        if let url = Bundle.main.url(forResource: fileName, withExtension: "mp4") {
-            print("Found video in bundle root: \(fileName).mp4 at \(url)")
-            return url
-        }
-        
-        // Priority 4: Try .mov files in videos subdirectory
-        if let url = Bundle.main.url(forResource: fileName, withExtension: "mov", subdirectory: "videos") {
-            print("Found mov video in videos folder: \(fileName).mov at \(url)")
-            return url
-        }
-        
-        // Final fallback: .mov files in bundle root
-        if let url = Bundle.main.url(forResource: fileName, withExtension: "mov") {
-            print("Found mov video in bundle root: \(fileName).mov at \(url)")
-            return url
-        }
-        
-        print("❌ No video found for: \(fileName)")
-        print("📁 Bundle path: \(Bundle.main.bundlePath)")
-        
-        // List what's actually in the videos folder
-        if let videosPath = Bundle.main.path(forResource: "videos", ofType: nil),
-           let videoContents = try? FileManager.default.contentsOfDirectory(atPath: videosPath) {
-            print("📹 Videos folder contents: \(videoContents)")
-            let matches = videoContents.filter { $0.contains(fileName) }
-            print("🔍 Files containing '\(fileName)': \(matches)")
-        }
-        
-        print("⚠️ Using placeholder video")
-        return getPlaceholderVideoURL()
-    }
-    
-    
-    private func getPlaceholderVideoURL() -> URL? {
-        return Bundle.main.url(forResource: "placeholder_video", withExtension: "mp4")
-    }
-    
-    func preloadVideo(fileName: String) {
-        guard let url = getVideoURL(for: fileName) else { return }
-        
-        let asset = AVURLAsset(url: url)
-        let playerItem = AVPlayerItem(asset: asset)
-        
-        // Preload the video
-        playerItem.preferredForwardBufferDuration = 5.0
-    }
-    
+
     func isVideoAvailable(fileName: String) -> Bool {
-        // Check if bundled
         if Bundle.main.url(forResource: fileName, withExtension: "mp4") != nil ||
            Bundle.main.url(forResource: fileName, withExtension: "mp4", subdirectory: "videos") != nil ||
            Bundle.main.url(forResource: fileName, withExtension: "mov") != nil ||
            Bundle.main.url(forResource: fileName, withExtension: "mov", subdirectory: "videos") != nil {
             return true
         }
-        
-        // Check if cached from GitHub
-        let cacheDirectory = getCacheDirectory()
-        let cachedVideoURL = cacheDirectory.appendingPathComponent("videos").appendingPathComponent(fileName.hasSuffix(".mp4") ? fileName : "\(fileName).mp4")
-        return FileManager.default.fileExists(atPath: cachedVideoURL.path)
+        return FileManager.default.fileExists(atPath: cacheURL(for: fileName).path)
     }
-    
-    // MARK: - Private Helper Methods
-    
-    private func getCacheDirectory() -> URL {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsPath.appendingPathComponent("GitHubContent")
-    }
-    
-    private func downloadVideoInBackground(fileName: String) {
-        Task {
-            do {
-                _ = try await gitHubContentService.downloadVideo(fileName: fileName)
-                print("Background download completed for: \(fileName)")
-            } catch {
-                print("Background download failed for \(fileName): \(error)")
-            }
+
+    /// Called when content version changes (new commit). Stales all cached videos
+    /// so they'll be re-downloaded on next access.
+    func invalidateVideoCache() {
+        let currentVersion = defaults.string(forKey: "GitHubContentVersion") ?? "unknown"
+        let savedVersion = defaults.string(forKey: videoVersionKey)
+
+        if currentVersion != savedVersion {
+            print("Video cache invalidated: content version changed from \(savedVersion ?? "none") to \(currentVersion)")
+            defaults.set(currentVersion, forKey: videoVersionKey)
+            defaults.removeObject(forKey: videoVersionMapKey)
         }
+    }
+
+    // MARK: - Private Methods
+
+    private func isVideoStale(fileName: String) -> Bool {
+        let map = defaults.dictionary(forKey: videoVersionMapKey) as? [String: String] ?? [:]
+        let currentVersion = defaults.string(forKey: "GitHubContentVersion") ?? "unknown"
+        return map[normalized(fileName)] != currentVersion
+    }
+
+    private func markVideoCurrent(fileName: String) {
+        let currentVersion = defaults.string(forKey: "GitHubContentVersion") ?? "unknown"
+        var map = defaults.dictionary(forKey: videoVersionMapKey) as? [String: String] ?? [:]
+        map[normalized(fileName)] = currentVersion
+        defaults.set(map, forKey: videoVersionMapKey)
+    }
+
+    private func normalized(_ fileName: String) -> String {
+        fileName.hasSuffix(".mp4") ? fileName : "\(fileName).mp4"
+    }
+
+    private func cacheURL(for fileName: String) -> URL {
+        getCacheDirectory()
+            .appendingPathComponent("videos")
+            .appendingPathComponent(normalized(fileName))
+    }
+
+    private func getBundledVideoURL(for fileName: String) -> URL? {
+        if let url = Bundle.main.url(forResource: fileName, withExtension: "mp4", subdirectory: "sdr") {
+            return url
+        }
+        if let url = Bundle.main.url(forResource: fileName, withExtension: "mp4", subdirectory: "videos") {
+            return url
+        }
+        if let url = Bundle.main.url(forResource: fileName, withExtension: "mp4") {
+            return url
+        }
+        if let url = Bundle.main.url(forResource: fileName, withExtension: "mov", subdirectory: "videos") {
+            return url
+        }
+        if let url = Bundle.main.url(forResource: fileName, withExtension: "mov") {
+            return url
+        }
+        return nil
+    }
+
+    private func getCacheDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("GitHubContent")
     }
 }

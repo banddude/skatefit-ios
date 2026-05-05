@@ -8,12 +8,13 @@ struct AppConfig {
     // Change this one variable to rebrand the entire app
     // Example: "skate", "office", "yoga", "dance", etc.
     static let brand = "skate"
+    static let displayName = "SkateFit"
 
     // MARK: - Derived Properties
 
     /// Display name for the app (e.g., "YourBrandFit", "SkateFit", "OfficeFit")
     static var appName: String {
-        return brand.prefix(1).uppercased() + brand.dropFirst() + "Fit"
+        return displayName
     }
 
     /// GitHub repository configuration

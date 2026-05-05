@@ -1,83 +1,48 @@
 import SwiftUI
 
-// Reusable Card View
 struct OnboardingCardView: View {
     let data: OnboardingCard
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                data.displayColor.opacity(0.55),
-                                data.displayColor.opacity(0.22)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+        HStack(alignment: .center, spacing: Neon.Space.lg) {
+            if let icon = data.icon {
+                NeonIconCircle(icon: icon, color: data.displayColor, size: 50, iconSize: 20)
+            } else {
+                ZStack {
+                    Circle()
+                        .stroke(
+                            LinearGradient(colors: [data.displayColor, Neon.violet], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: Neon.Stroke.medium
                         )
-                    )
-                    .frame(width: 50, height: 50)
-                if let icon = data.icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.white)
-                } else {
-                    Text(String(data.title.prefix(1)))
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundColor(.white)
+                        .frame(width: 50, height: 50)
+                        .background(Circle().fill(Neon.bg))
+                    Text(String(data.title.prefix(1)).uppercased())
+                        .font(Neon.font(20, .heavy))
+                        .foregroundColor(data.displayColor)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(data.title)
-                    .font(.system(size: 17, weight: .bold))
+            VStack(alignment: .leading, spacing: Neon.Space.xs) {
+                Text(data.title.uppercased())
+                    .font(Neon.font(14, .heavy))
                     .foregroundColor(.white)
+                    .tracking(1)
 
                 Text(data.description)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(Neon.font(12, .medium))
+                    .foregroundColor(Neon.textMid)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            data.displayColor.opacity(0.18),
-                            Color(red: 0.10, green: 0.10, blue: 0.13).opacity(0.92)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            data.displayColor.opacity(0.55),
-                            data.displayColor.opacity(0.15)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: data.displayColor.opacity(0.18), radius: 8, x: 0, y: 4)
+        .padding(Neon.Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .neonOutline(color: data.displayColor, radius: Neon.Radius.medium, lineWidth: Neon.Stroke.thin, glow: Neon.Glow.card)
     }
 }
 
-// The main template view
 struct OnboardingTemplateView: View {
     let icon: String
     let title: String
@@ -86,56 +51,76 @@ struct OnboardingTemplateView: View {
     let proTip: String?
 
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.system(size: 30, weight: .heavy))
+        VStack(spacing: 18) {
+            VStack(spacing: Neon.Space.md) {
+                ZStack {
+                    Circle()
+                        .stroke(
+                            LinearGradient(colors: [Neon.magenta, Neon.violet], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: Neon.Stroke.medium
+                        )
+                        .frame(width: 80, height: 80)
+                        .background(Circle().fill(Neon.bg))
+                    Image(systemName: icon)
+                        .font(Neon.font(32, .semibold))
+                        .foregroundColor(Neon.magenta)
+                        .neonGlow(Neon.magenta, radius: Neon.Glow.hero, opacity: Neon.Glow.standard)
+                }
+                .padding(.top, Neon.Space.sm)
+
+                Text(title.uppercased())
+                    .font(Neon.font(20, .heavy))
                     .foregroundColor(.white)
+                    .tracking(1.5)
                     .multilineTextAlignment(.center)
 
                 Text(description)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Neon.font(13, .medium))
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.white.opacity(0.65))
-                    .padding(.horizontal, 20)
+                    .foregroundColor(Neon.textMid)
+                    .padding(.horizontal, Neon.Space.xxl)
+                    .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, 4)
+            .padding(.top, 6)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Neon.Space.md) {
                 ForEach(cardData) { data in
                     OnboardingCardView(data: data)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Neon.Space.lg)
 
             if let proTip = proTip {
-                HStack(alignment: .center, spacing: 10) {
+                HStack(alignment: .top, spacing: Neon.Space.md) {
                     Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.yellow)
-                    Text(proTip)
-                        .font(.system(size: 13, weight: .medium))
-                        .multilineTextAlignment(.leading)
-                        .foregroundColor(.white.opacity(0.85))
+                        .font(Neon.font(14, .semibold))
+                        .foregroundColor(Neon.amber)
+                        .neonGlow(Neon.amber, radius: Neon.Glow.icon, opacity: Neon.Glow.standard)
+                    VStack(alignment: .leading, spacing: Neon.Space.xs) {
+                        Text("TIP")
+                            .font(Neon.font(10, .heavy))
+                            .foregroundColor(Neon.amber)
+                            .tracking(2)
+                        Text(proTip)
+                            .font(Neon.font(12, .medium))
+                            .multilineTextAlignment(.leading)
+                            .foregroundColor(Neon.textHi)
+                            .lineSpacing(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Neon.Space.lg)
                 .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.yellow.opacity(0.06))
-                        )
+                    RoundedRectangle(cornerRadius: Neon.Radius.small, style: .continuous)
+                        .fill(Neon.bg)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.yellow.opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Neon.Radius.small, style: .continuous)
+                        .stroke(Neon.amber.opacity(Neon.Stroke.muted), lineWidth: Neon.Stroke.thin)
                 )
-                .padding(.horizontal, 20)
+                .shadow(color: Neon.amber.opacity(0.3), radius: Neon.Glow.icon, x: 0, y: 0)
+                .padding(.horizontal, Neon.Space.lg)
             }
 
             Color.clear.frame(height: 80)

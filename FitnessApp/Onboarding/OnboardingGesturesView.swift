@@ -14,12 +14,15 @@ struct OnboardingGesturesView: View {
                     proTip: tutorialData.proTip
                 )
             } else {
-                VStack {
-                    ProgressView()
+                VStack(spacing: Neon.Space.xl) {
+                    ProgressView().tint(Neon.magenta)
                     Text("Loading...")
+                        .font(Neon.font(13, .heavy))
+                        .foregroundColor(Neon.textMid)
+                        .tracking(2)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemGroupedBackground))
+                .background(Neon.bg)
             }
         }
     }

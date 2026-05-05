@@ -9,6 +9,7 @@ class ContentManager: ObservableObject {
     @Published var isInitializing = false
     @Published var initializationError: String?
     @Published var workoutContainers: [WorkoutContainer] = []
+    @Published private(set) var sortedWorkouts: [WorkoutContainer] = []
     @Published var contentUpdateAvailable = false
     
     private let gitHubContentService: GitHubContentService
@@ -25,36 +26,56 @@ class ContentManager: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Initialize content on app startup
+    /// Initialize content on app startup — loads cache instantly, updates in background
     func initializeContent() async {
         await MainActor.run {
             guard !isInitializing else { return }
             isInitializing = true
             initializationError = nil
         }
-        
+
+        // Step 1: Load from local cache immediately (milliseconds)
+        if gitHubContentService.hasCachedWorkouts() {
+            do {
+                let cached = try await gitHubContentService.loadWorkoutsFromCache()
+                await MainActor.run {
+                    workoutContainers = cached
+                    sortedWorkouts = cached.sorted { $0.totalSeconds(for: .intermediate) < $1.totalSeconds(for: .intermediate) }
+                    isInitializing = false
+                    ThumbnailCache.shared.preloadThumbnails(for: cached)
+                }
+                print("Loaded \(cached.count) workouts from cache instantly")
+
+                // Step 2: Check for updates in background
+                Task {
+                    await gitHubContentService.checkForUpdates()
+                }
+                return
+            } catch {
+                print("Cache load failed, falling back to download: \(error)")
+            }
+        }
+
+        // Step 3: No cache available, download fresh
         do {
-            // First try to load from GitHub (cached or fresh)
             let containers = try await gitHubContentService.loadWorkouts()
-            
-            // Check for updates in background
-            await gitHubContentService.checkForUpdates()
-            
             await MainActor.run {
                 workoutContainers = containers
-                // Start preloading thumbnails in background
+                sortedWorkouts = containers.sorted { $0.totalSeconds(for: .intermediate) < $1.totalSeconds(for: .intermediate) }
                 ThumbnailCache.shared.preloadThumbnails(for: containers)
             }
+            print("Downloaded \(containers.count) workouts")
 
-            print("Content initialized successfully with \(containers.count) workouts")
-            
+            Task {
+                await gitHubContentService.checkForUpdates()
+            }
         } catch {
             await MainActor.run {
-                initializationError = "Failed to load workout content from GitHub: \(error.localizedDescription)"
+                initializationError = "Failed to load workout content: \(error.localizedDescription)"
             }
-            print("Failed to load workouts from GitHub: \(error)")
+            print("Failed to load workouts: \(error)")
         }
-        
+
         await MainActor.run {
             isInitializing = false
         }
@@ -84,6 +105,7 @@ class ContentManager: ObservableObject {
             // Update the workouts array with fresh data
             await MainActor.run {
                 workoutContainers = freshWorkouts
+                sortedWorkouts = freshWorkouts.sorted { $0.totalSeconds(for: .intermediate) < $1.totalSeconds(for: .intermediate) }
                 contentUpdateAvailable = false
                 // Preload thumbnails for new content
                 ThumbnailCache.shared.preloadThumbnails(for: freshWorkouts)
@@ -157,7 +179,6 @@ class ContentManager: ObservableObject {
     }
     
     private func setupBindings() {
-        // Listen to GitHub service update availability
         gitHubContentService.$updateAvailable
             .receive(on: DispatchQueue.main)
             .assign(to: \.contentUpdateAvailable, on: self)
@@ -262,37 +283,38 @@ class ThumbnailCache: ObservableObject {
         totalCount = videoFiles.count
         loadedCount = 0
 
-        for videoFile in videoFiles {
-            loadThumbnail(for: videoFile)
+        let files = Array(videoFiles)
+        loadingTasks["_batch"] = Task {
+            let batchSize = 4
+            for batchStart in stride(from: 0, to: files.count, by: batchSize) {
+                guard !Task.isCancelled else { break }
+                let batch = files[batchStart..<min(batchStart + batchSize, files.count)]
+                await withTaskGroup(of: Void.self) { group in
+                    for videoFile in batch {
+                        group.addTask {
+                            await self.loadSingleThumbnail(for: videoFile)
+                        }
+                    }
+                }
+            }
+            _ = await MainActor.run { loadingTasks.removeValue(forKey: "_batch") }
         }
     }
 
-    private func loadThumbnail(for videoFile: String) {
-        if cache.object(forKey: videoFile as NSString) != nil { return }
-        if loadingTasks[videoFile] != nil { return }
+    private func loadSingleThumbnail(for videoFile: String) async {
+        guard let url = getVideoURL(for: videoFile) else { return }
+        let asset = AVURLAsset(url: url)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
 
-        loadingTasks[videoFile] = Task {
-            guard let url = getVideoURL(for: videoFile) else { return }
-
-            let asset = AVURLAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-
-            do {
-                let (cgImage, _) = try await imageGenerator.image(at: .zero)
-                let uiImage = UIImage(cgImage: cgImage)
-
-                await MainActor.run {
-                    cache.setObject(uiImage, forKey: videoFile as NSString)
-                    loadedCount += 1
-                    loadingTasks.removeValue(forKey: videoFile)
-                }
-            } catch {
-                _ = await MainActor.run {
-                    loadingTasks.removeValue(forKey: videoFile)
-                }
+        do {
+            let (cgImage, _) = try await imageGenerator.image(at: .zero)
+            let uiImage = UIImage(cgImage: cgImage)
+            await MainActor.run {
+                cache.setObject(uiImage, forKey: videoFile as NSString)
+                loadedCount += 1
             }
-        }
+        } catch {}
     }
 
     private func getVideoURL(for videoFile: String) -> URL? {

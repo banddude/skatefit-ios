@@ -5,11 +5,11 @@ struct WorkoutDetailView: View {
     let workoutName: String
     let workoutIcon: String
     let workoutColor: Color
-    let difficulty: WorkoutDifficulty
     let exercises: [WorkoutExercise]
 
     @EnvironmentObject var themeManager: ThemeManager
     @State private var selectedExerciseIndex: Int? = nil
+    @State private var difficulty: WorkoutDifficulty = .intermediate
     @StateObject private var videoPreloader: VideoPreloader
 
     private struct WorkoutPresentation: Identifiable {
@@ -19,13 +19,24 @@ struct WorkoutDetailView: View {
 
     @State private var workoutPresentation: WorkoutPresentation? = nil
 
-    init(workoutName: String, workoutIcon: String, workoutColor: Color, difficulty: WorkoutDifficulty, exercises: [WorkoutExercise]) {
+    init(workoutName: String, workoutIcon: String, workoutColor: Color, exercises: [WorkoutExercise], initialDifficulty: WorkoutDifficulty = .intermediate) {
         self.workoutName = workoutName
         self.workoutIcon = workoutIcon
         self.workoutColor = workoutColor
-        self.difficulty = difficulty
         self.exercises = exercises
+        self._difficulty = State(initialValue: initialDifficulty)
         self._videoPreloader = StateObject(wrappedValue: VideoPreloader(exercises: exercises))
+    }
+
+    private var difficulties: [WorkoutDifficulty] { WorkoutDifficulty.allCases }
+    private var selectedIdx: Int { difficulties.firstIndex(of: difficulty) ?? 1 }
+
+    private func difficultyColor(_ d: WorkoutDifficulty) -> Color {
+        switch d {
+        case .beginner: return Neon.cyan
+        case .intermediate: return Neon.magenta
+        case .advanced: return Neon.lime
+        }
     }
 
     private var exercisesBySection: [String: [WorkoutExercise]] {
@@ -36,24 +47,29 @@ struct WorkoutDetailView: View {
         WorkoutSection.allSections.filter { exercisesBySection[$0] != nil }
     }
 
+    private var difficultyAccent: Color {
+        switch difficulty {
+        case .beginner: return Neon.cyan
+        case .intermediate: return Neon.magenta
+        case .advanced: return Neon.lime
+        }
+    }
+
+    private var totalMinutes: String {
+        let total = exercises.reduce(0) { $0 + $1.totalSeconds(for: difficulty) }
+        if total == 0 { return "—" }
+        return "\(Int(ceil(Double(total) / 60.0)))"
+    }
+
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    workoutColor.opacity(0.22),
-                    Color.black.opacity(0.95),
-                    Color.black
-                ],
-                startPoint: .top,
-                endPoint: .center
-            )
-            .ignoresSafeArea()
+            NeonGridFloor()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 22) {
                     heroCard
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
+                        .padding(.horizontal, 18)
+                        .padding(.top, Neon.Space.sm)
 
                     ForEach(sections, id: \.self) { section in
                         sectionView(for: section)
@@ -64,7 +80,12 @@ struct WorkoutDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .onAppear { videoPreloader.startLoading() }
+        .onAppear {
+            videoPreloader.startLoading()
+            // Prioritize this workout's videos in the download queue
+            let videos = exercises.compactMap { $0.videoFile }
+            VideoDownloadQueue.shared.prioritize(fileNames: videos)
+        }
         .onDisappear { videoPreloader.cleanup() }
         .fullScreenCover(item: $workoutPresentation) { presentation in
             WorkoutPlayerView(
@@ -79,129 +100,74 @@ struct WorkoutDetailView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .center, spacing: 14) {
+        VStack(alignment: .leading, spacing: Neon.Space.lg) {
+            HStack(alignment: .center, spacing: Neon.Space.md) {
                 ZStack {
                     Circle()
-                        .fill(
+                        .stroke(
                             LinearGradient(
-                                colors: [
-                                    workoutColor.opacity(0.6),
-                                    workoutColor.opacity(0.25)
-                                ],
+                                colors: [workoutColor, Neon.violet],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
-                            )
+                            ),
+                            lineWidth: Neon.Stroke.medium
                         )
-                        .frame(width: 60, height: 60)
+                        .frame(width: 52, height: 52)
+                        .background(Circle().fill(Neon.bg))
                     Image(systemName: workoutIcon)
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(Neon.font(22, .semibold))
+                        .foregroundColor(workoutColor)
+                        .neonGlow(workoutColor, radius: Neon.Glow.icon, opacity: Neon.Glow.strong)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(workoutName)
-                        .font(.system(size: 24, weight: .heavy))
+                VStack(alignment: .leading, spacing: Neon.Space.xs) {
+                    Text(workoutName.uppercased())
+                        .font(Neon.font(20, .heavy))
                         .foregroundColor(.white)
+                        .tracking(1.2)
                         .lineLimit(2)
-                        .minimumScaleFactor(0.85)
+                        .minimumScaleFactor(0.8)
 
-                    HStack(spacing: 8) {
-                        Label(difficulty.displayName, systemImage: difficultyIcon)
-                            .font(.system(size: 12, weight: .semibold))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(difficulty.color.opacity(0.22))
-                            )
-                            .overlay(
-                                Capsule().stroke(difficulty.color.opacity(0.5), lineWidth: 1)
-                            )
-                            .foregroundColor(difficulty.color)
+                    HStack(spacing: Neon.Space.sm) {
+                        metaPill(value: "\(exercises.count)", unit: "moves", color: Neon.cyan)
+                        metaSeparator
+                        metaPill(value: totalMinutes, unit: "min", color: Neon.amber)
                     }
                 }
 
                 Spacer()
             }
 
-            // Stat strip
-            HStack(spacing: 0) {
-                statBlock(value: "\(exercises.count)", label: "Exercises", icon: "list.bullet")
-                Divider().frame(height: 30).overlay(Color.white.opacity(0.15))
-                statBlock(value: "\(totalDuration)", label: "Minutes", icon: "clock.fill")
-                Divider().frame(height: 30).overlay(Color.white.opacity(0.15))
-                statBlock(value: "\(sections.count)", label: "Sections", icon: "square.stack.3d.up.fill")
-            }
-            .padding(.vertical, 4)
+            difficultySlider
 
-            // Primary CTA
             Button(action: { workoutPresentation = WorkoutPresentation(exerciseIndex: 0) }) {
-                HStack(spacing: 10) {
+                HStack(spacing: Neon.Space.sm) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 16, weight: .bold))
-                    Text("Start Workout")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Neon.font(16, .heavy))
+                    Text("START")
+                        .tracking(2)
                 }
-                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            workoutColor,
-                            workoutColor.opacity(0.7)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: workoutColor.opacity(0.45), radius: 14, x: 0, y: 6)
             }
-            .buttonStyle(PressableCardButtonStyle())
+            .buttonStyle(NeonButtonStyle(color: workoutColor))
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(workoutColor.opacity(0.08))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            workoutColor.opacity(0.55),
-                            workoutColor.opacity(0.1)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
+        .padding(.vertical, Neon.Space.sm)
     }
 
-    private func statBlock(value: String, label: String, icon: String) -> some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(workoutColor)
-                Text(value)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.white.opacity(0.55))
-                .textCase(.uppercase)
-                .tracking(0.6)
+    private func metaPill(value: String, unit: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Text(value)
+                .font(Neon.font(14, .heavy))
+                .foregroundColor(color)
+            Text(unit.uppercased())
+                .font(Neon.font(10, .bold))
+                .foregroundColor(Neon.textMid)
+                .tracking(0.5)
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private var metaSeparator: some View {
+        Circle().fill(Neon.textLow).frame(width: 2, height: 2)
     }
 
     private var difficultyIcon: String {
@@ -212,32 +178,100 @@ struct WorkoutDetailView: View {
         }
     }
 
+    private var difficultySlider: some View {
+        VStack(spacing: Neon.Space.sm) {
+            Text(difficulty.displayName.uppercased())
+                .font(Neon.font(13, .heavy))
+                .foregroundColor(difficultyAccent)
+                .tracking(2)
+                .neonGlow(difficultyAccent, radius: Neon.Glow.icon, opacity: Neon.Glow.muted)
+                .animation(Neon.Anim.press, value: difficulty)
+
+            GeometryReader { geo in
+                let thumbSize: CGFloat = 28
+                let trackWidth = max(geo.size.width - thumbSize, 1)
+                let segs = max(difficulties.count - 1, 1)
+                let step = trackWidth / CGFloat(segs)
+                let activeColor = difficultyAccent
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Neon.panel)
+                        .frame(height: Neon.Space.sm)
+                        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: Neon.Stroke.thin))
+                        .padding(.horizontal, thumbSize / 2)
+
+                    Capsule()
+                        .fill(activeColor.opacity(0.55))
+                        .frame(width: max(0, step * CGFloat(selectedIdx)) + thumbSize, height: Neon.Space.sm)
+                        .neonGlow(activeColor, radius: Neon.Glow.icon, opacity: Neon.Glow.muted)
+
+                    ForEach(0..<difficulties.count, id: \.self) { idx in
+                        Circle()
+                            .fill(idx <= selectedIdx ? activeColor : Color.white.opacity(0.35))
+                            .frame(width: 6, height: 6)
+                            .offset(x: thumbSize / 2 + step * CGFloat(idx) - 3)
+                    }
+
+                    Image(systemName: difficultyIcon)
+                        .font(Neon.font(13, .heavy))
+                        .foregroundColor(.white)
+                        .frame(width: thumbSize, height: thumbSize)
+                        .background(Circle().fill(activeColor))
+                        .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                        .neonGlow(activeColor, radius: Neon.Glow.hero, opacity: 0.85)
+                        .offset(x: step * CGFloat(selectedIdx))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedIdx)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: thumbSize)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let x = value.location.x - thumbSize / 2
+                            let raw = x / step
+                            let idx = max(0, min(difficulties.count - 1, Int(raw.rounded())))
+                            if difficulties[idx] != difficulty {
+                                difficulty = difficulties[idx]
+                            }
+                        }
+                )
+            }
+            .frame(height: 28)
+        }
+    }
+
     private func sectionView(for section: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Neon.Space.md) {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(section.sectionColor.opacity(0.22))
+                        .stroke(section.sectionColor.opacity(0.7), lineWidth: Neon.Stroke.medium)
                         .frame(width: 32, height: 32)
+                        .background(Circle().fill(Neon.bg))
                     Image(systemName: section.sectionIcon)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Neon.font(13, .semibold))
                         .foregroundColor(section.sectionColor)
+                        .neonGlow(section.sectionColor, radius: Neon.Glow.icon, opacity: Neon.Glow.standard)
                 }
 
-                Text(section)
-                    .font(.system(size: 18, weight: .bold))
+                Text(section.uppercased())
+                    .font(Neon.font(15, .heavy))
                     .foregroundColor(.white)
+                    .tracking(1.5)
 
                 Spacer()
 
-                Text("\(exercisesBySection[section]?.count ?? 0)")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
+                Text("× \(exercisesBySection[section]?.count ?? 0)")
+                    .font(Neon.font(12, .heavy))
+                    .foregroundColor(Neon.amber)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.white.opacity(0.08)))
+                    .overlay(Capsule().stroke(Neon.amber.opacity(0.7), lineWidth: Neon.Stroke.thin))
+                    .background(Capsule().fill(Neon.amber.opacity(0.12)))
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 18)
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 10),
@@ -255,16 +289,10 @@ struct WorkoutDetailView: View {
                     .buttonStyle(PressableCardButtonStyle())
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 18)
         }
     }
 
-    private var totalDuration: Int {
-        let warmupCount = exercisesBySection[WorkoutSection.warmUp]?.count ?? 0
-        let mainCount = exercisesBySection[WorkoutSection.main]?.count ?? 0
-        let cooldownCount = exercisesBySection[WorkoutSection.coolDown]?.count ?? 0
-        return (warmupCount * 2) + (mainCount * 3) + (cooldownCount * 2)
-    }
 }
 
 struct WorkoutExerciseRow: View {
@@ -272,76 +300,80 @@ struct WorkoutExerciseRow: View {
     let difficulty: WorkoutDifficulty
 
     @ObservedObject private var thumbnailCache = ThumbnailCache.shared
+    @State private var resolvedVideoURL: URL?
+
+    private let displayMove: String
+
+    init(exercise: WorkoutExercise, difficulty: WorkoutDifficulty) {
+        self.exercise = exercise
+        self.difficulty = difficulty
+        self.displayMove = exercise.move.replacingOccurrences(of: "-", with: " ")
+    }
 
     private var thumbnail: UIImage? {
         thumbnailCache.thumbnail(for: exercise.videoFile)
     }
 
-    private var displayMove: String {
-        exercise.move.replacingOccurrences(of: "-", with: " ")
-    }
-
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Group {
-                    if let thumbnail = thumbnail {
-                        Image(uiImage: thumbnail)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                    } else {
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        exercise.section.sectionColor.opacity(0.5),
-                                        exercise.section.sectionColor.opacity(0.85)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
+                // Layer 1: static thumbnail (always visible as background)
+                if let thumbnail = thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                } else {
+                    AppIconVideoPlaceholder(compact: true)
                 }
-                .clipped()
 
-                // Bottom-up gradient for legibility
-                LinearGradient(
-                    colors: [Color.black.opacity(0), Color.black.opacity(0.45), Color.black.opacity(0.85)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                VStack {
-                    Spacer()
-                    Text(displayMove)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .shadow(color: .black, radius: 3)
-                        .padding(.horizontal, 6)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.85)
-
-                    Text(exercise.instructions(for: difficulty))
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.85))
-                        .multilineTextAlignment(.center)
-                        .shadow(color: .black, radius: 2)
-                        .padding(.horizontal, 4)
-                        .padding(.top, 2)
-                        .padding(.bottom, 8)
-                        .lineLimit(2)
+                // Layer 2: looping video fades in on top when ready
+                if let videoURL = resolvedVideoURL {
+                    LoopingVideoThumbnail(url: videoURL)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.0), Color.black.opacity(0.6), Color.black.opacity(0.95)],
+                startPoint: .top,
+                endPoint: .bottom
             )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack {
+                Spacer()
+                Text(displayMove.uppercased())
+                    .font(Neon.font(11, .heavy))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .shadow(color: .black, radius: 2)
+                    .padding(.horizontal, 4)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .tracking(0.5)
+
+                Text(exercise.instructions(for: difficulty))
+                    .font(Neon.font(9, .bold))
+                    .foregroundColor(Neon.cyan)
+                    .multilineTextAlignment(.center)
+                    .shadow(color: .black, radius: 2)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 2)
+                    .padding(.bottom, 8)
+                    .lineLimit(2)
+            }
         }
-        .aspectRatio(1, contentMode: .fit)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(exercise.section.sectionColor.opacity(0.6), lineWidth: Neon.Stroke.thin)
+        )
+        .shadow(color: exercise.section.sectionColor.opacity(0.35), radius: Neon.Glow.icon, x: 0, y: 0)
+        .aspectRatio(9/16, contentMode: .fit)
+        .task(id: exercise.videoFileName) {
+            resolvedVideoURL = await VideoService.shared.getVideoURLAsync(for: exercise.videoFileName)
+        }
     }
 }
 
@@ -351,7 +383,6 @@ struct WorkoutExerciseRow: View {
             workoutName: "Full Body Workout",
             workoutIcon: "figure.strengthtraining.traditional",
             workoutColor: .blue,
-            difficulty: .intermediate,
             exercises: []
         )
     }
