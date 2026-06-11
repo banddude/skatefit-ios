@@ -43,10 +43,20 @@ final class TipJarManager {
             case .icedOatLatte: return "$5.99"
             }
         }
+
+        var monthlyProductID: String {
+            rawValue + "_monthly"
+        }
+
+        init?(monthlyProductID: String) {
+            guard monthlyProductID.hasSuffix("_monthly") else { return nil }
+            self.init(rawValue: String(monthlyProductID.dropLast("_monthly".count)))
+        }
     }
 
     private(set) var oneTimeProducts: [TipTier: Product] = [:]
-    private(set) var subscriptionProducts: [TipTier: Product] = [:]
+    private(set) var monthlyProducts: [TipTier: Product] = [:]
+    private(set) var activeMonthlyTier: TipTier?
     private(set) var isLoading = false
     private(set) var purchasedTier: TipTier?
     private(set) var showThankYou = false
@@ -70,23 +80,25 @@ final class TipJarManager {
 
         do {
             let oneTimeIDs = TipTier.allCases.map { $0.rawValue }
-            let subIDs = TipTier.allCases.map { $0.rawValue + "_monthly" }
-
-            let allIDs = oneTimeIDs + subIDs
-            let products = try await Product.products(for: allIDs)
+            let monthlyIDs = TipTier.allCases.map { $0.monthlyProductID }
+            let products = try await Product.products(for: oneTimeIDs + monthlyIDs)
 
             for product in products {
-                if product.type == .consumable {
+                switch product.type {
+                case .consumable:
                     if let tier = TipTier(rawValue: product.id) {
                         oneTimeProducts[tier] = product
                     }
-                } else if product.type == .autoRenewable {
-                    let baseID = product.id.replacingOccurrences(of: "_monthly", with: "")
-                    if let tier = TipTier(rawValue: baseID) {
-                        subscriptionProducts[tier] = product
+                case .autoRenewable:
+                    if let tier = TipTier(monthlyProductID: product.id) {
+                        monthlyProducts[tier] = product
                     }
+                default:
+                    break
                 }
             }
+
+            await updateSubscriptionStatus()
         } catch {
             errorMessage = "Could not load tips. Try again later."
         }
@@ -104,6 +116,7 @@ final class TipJarManager {
                 await transaction.finish()
                 purchasedTier = tierForProduct(product)
                 showThankYou = true
+                await updateSubscriptionStatus()
             case .userCancelled:
                 break
             case .pending:
@@ -114,6 +127,19 @@ final class TipJarManager {
         } catch {
             errorMessage = "Purchase failed. Try again."
         }
+    }
+
+    func updateSubscriptionStatus() async {
+        var active: TipTier?
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            if transaction.productType == .autoRenewable,
+               transaction.revocationDate == nil,
+               let tier = TipTier(monthlyProductID: transaction.productID) {
+                active = tier
+            }
+        }
+        activeMonthlyTier = active
     }
 
     func dismissThankYou() {
@@ -128,8 +154,11 @@ final class TipJarManager {
                 do {
                     let transaction = try self.checkVerifiedAsync(result)
                     await transaction.finish()
-                    await MainActor.run {
-                        self.showThankYou = true
+                    await self.updateSubscriptionStatus()
+                    if transaction.productType == .consumable {
+                        await MainActor.run {
+                            self.showThankYou = true
+                        }
                     }
                 } catch {
                     // Ignore invalid transactions
@@ -171,8 +200,7 @@ final class TipJarManager {
     }
 
     private func tierForProduct(_ product: Product) -> TipTier? {
-        let baseID = product.id.replacingOccurrences(of: "_monthly", with: "")
-        return TipTier(rawValue: baseID)
+        TipTier(rawValue: product.id) ?? TipTier(monthlyProductID: product.id)
     }
 
     private enum StoreError: Error {

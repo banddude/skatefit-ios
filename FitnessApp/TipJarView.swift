@@ -4,8 +4,11 @@ import StoreKit
 struct TipJarView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var manager = TipJarManager.shared
+    @State private var showManageSubscriptions = false
 
     private static let cachedAppIcon = AppConfig.getAppIcon()
+    private static let privacyPolicyURL = URL(string: "https://banddude.github.io/skate-fit-files/PRIVACY_POLICY")!
+    private static let termsOfUseURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
     var body: some View {
         ZStack {
@@ -41,8 +44,11 @@ struct TipJarView: View {
         .task {
             if manager.oneTimeProducts.isEmpty {
                 await manager.loadProducts()
+            } else {
+                await manager.updateSubscriptionStatus()
             }
         }
+        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
     }
 
     private var header: some View {
@@ -95,13 +101,31 @@ struct TipJarView: View {
                 .multilineTextAlignment(.center)
                 .tracking(0.5)
                 .padding(.top, Neon.Space.sm)
+
+            Text("Monthly tips are auto-renewing subscriptions billed to your Apple Account. They renew each month until cancelled in Settings, at least 24 hours before the end of the current period. Cancel anytime.")
+                .font(Neon.font(9, .medium))
+                .foregroundColor(Neon.textLow)
+                .multilineTextAlignment(.center)
+                .padding(.top, 2)
+
+            HStack(spacing: Neon.Space.lg) {
+                Link("Privacy Policy", destination: Self.privacyPolicyURL)
+                Link("Terms of Use", destination: Self.termsOfUseURL)
+                if manager.activeMonthlyTier != nil {
+                    Button("Manage Subscription") { showManageSubscriptions = true }
+                }
+            }
+            .font(Neon.font(10, .semibold))
+            .foregroundColor(Neon.cyan)
+            .padding(.top, 2)
         }
     }
 
     private func tipCard(for tier: TipJarManager.TipTier) -> some View {
         let accent = tier.accent
         let oneTimeProduct = manager.oneTimeProducts[tier]
-        let subProduct = manager.subscriptionProducts[tier]
+        let monthlyProduct = manager.monthlyProducts[tier]
+        let isActiveMonthly = manager.activeMonthlyTier == tier
 
         return VStack(spacing: 0) {
             HStack(spacing: Neon.Space.sm) {
@@ -120,18 +144,28 @@ struct TipJarView: View {
                 }
 
                 Spacer()
+
+                if isActiveMonthly {
+                    Text("MONTHLY ✓")
+                        .font(Neon.font(10, .heavy))
+                        .tracking(1)
+                        .foregroundColor(accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .overlay(Capsule().stroke(accent.opacity(0.6), lineWidth: 1))
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
             .padding(.bottom, 12)
 
-            HStack(spacing: 10) {
+            HStack(spacing: Neon.Space.sm) {
                 Button(action: {
                     if let product = oneTimeProduct {
                         Task { await manager.purchase(product) }
                     }
                 }) {
-                    Text("ONCE")
+                    Text("TIP \(oneTimeProduct?.displayPrice ?? tier.fallbackPrice)")
                         .font(Neon.font(12, .bold))
                         .tracking(1.5)
                         .frame(maxWidth: .infinity)
@@ -140,22 +174,19 @@ struct TipJarView: View {
                 .disabled(oneTimeProduct == nil)
 
                 Button(action: {
-                    if let product = subProduct {
-                        Task { await manager.purchase(product) }
+                    if isActiveMonthly {
+                        showManageSubscriptions = true
+                    } else if let monthly = monthlyProduct {
+                        Task { await manager.purchase(monthly) }
                     }
                 }) {
-                    HStack(spacing: 4) {
-                        Text("MONTHLY")
-                            .font(Neon.font(12, .bold))
-                            .tracking(1.5)
-                        Text((subProduct?.displayPrice ?? tier.fallbackPrice) + "/mo")
-                            .font(Neon.font(9, .bold))
-                            .opacity(0.7)
-                    }
-                    .frame(maxWidth: .infinity)
+                    Text(isActiveMonthly ? "MANAGE" : "\(monthlyProduct?.displayPrice ?? tier.fallbackPrice)/MO")
+                        .font(Neon.font(12, .bold))
+                        .tracking(1.5)
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(TipButtonStyle(color: Neon.cyan, enabled: subProduct != nil))
-                .disabled(subProduct == nil)
+                .buttonStyle(TipButtonStyle(color: accent, enabled: monthlyProduct != nil || isActiveMonthly))
+                .disabled(monthlyProduct == nil && !isActiveMonthly)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)

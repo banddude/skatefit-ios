@@ -1,0 +1,8 @@
+appId: com.mikeshaffer.skatefit
+---
+- tapOn: "TIP $0.99"
+- extendedWaitUntil:
+    visible: ".*ubscri.*|.*urchase.*|.*onfirm.*|.*ancel.*"
+    timeout: 8000
+    optional: true
+- takeScreenshot: .tmp/onetime-purchase

@@ -1,0 +1,20 @@
+appId: com.mikeshaffer.skatefit
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
+- extendedWaitUntil:
+    visible: "SKATEFIT"
+    timeout: 15000
+    optional: true
+- tapOn:
+    id: ".*gear.*"
+    optional: true
+- tapOn: "BUY ME A DRINK"
+- extendedWaitUntil:
+    visible: "SUPPORT SKATEFIT"
+    timeout: 10000
+- takeScreenshot: .tmp/tipjar

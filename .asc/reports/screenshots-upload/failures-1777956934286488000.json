@@ -1,0 +1,31 @@
+{
+  "versionLocalizationId": "f74780a0-c2a9-4d57-97a7-4fb7554c80d1",
+  "path": ".asc/reports/screenshots-upload/failures-1777956934286488000.json",
+  "deviceType": "IPHONE_67",
+  "displayType": "APP_IPHONE_67",
+  "setId": "2afa5d02-1cfe-46f7-bb27-68bd6c8717cb",
+  "orderedIds": [
+    "643640ca-f50b-42ef-bdce-baf3feab3a1b",
+    "52743e59-d998-49ac-91b5-5ec9fae0524a",
+    "7e05c66e-92cd-415e-a96c-0d1a950ab60c",
+    "052f43f7-7f82-4c9f-bc45-d58347827322",
+    "959247aa-717c-4204-a158-171d61547777",
+    "c096b964-643e-4987-81c0-b4e7a200e073",
+    "d338badf-0c64-489d-95b5-10ea5d37594d",
+    "0f0dbfe3-1fb9-4591-b67d-0ef0820bb767",
+    "4bacef3c-2840-425e-aa57-84e8d82600f7",
+    "c62556d0-2eb3-4d15-8bf7-e9cf6d5ee7b0"
+  ],
+  "pendingFiles": [
+    "/tmp/skatefit_screenshots/iphone_player.png"
+  ],
+  "failures": [
+    {
+      "fileName": "iphone_player.png",
+      "filePath": "/tmp/skatefit_screenshots/iphone_player.png",
+      "error": "Too many screenshots.: Set: 2afa5d02-1cfe-46f7-bb27-68bd6c8717cb has already 10 appScreenshots"
+    }
+  ],
+  "error": "Too many screenshots.: Set: 2afa5d02-1cfe-46f7-bb27-68bd6c8717cb has already 10 appScreenshots",
+  "generatedAt": "2026-05-05T04:55:34Z"
+}

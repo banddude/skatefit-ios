@@ -4,8 +4,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var contentManager: ContentManager
     @State private var healthManager = HealthKitManager.shared
-    @State private var showTipJar = false
     @State private var showCacheCleared = false
+    @State private var showTipJar = false
 
     private static let cachedAppIcon = AppConfig.getAppIcon()
 
@@ -42,11 +42,11 @@ struct SettingsView: View {
                 cacheClearedToast
             }
         }
-        .fullScreenCover(isPresented: $showTipJar) {
-            TipJarView()
-        }
         .task {
             healthManager.checkAuthorizationStatus()
+        }
+        .fullScreenCover(isPresented: $showTipJar) {
+            TipJarView()
         }
     }
 
@@ -193,24 +193,28 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Tip Jar
+    // MARK: - About
 
     private var tipJarSection: some View {
         VStack(spacing: Neon.Space.md) {
-            sectionHeader(title: "SUPPORT", icon: "cup.and.saucer.fill", color: Neon.magenta)
+            sectionHeader(title: "SUPPORT", icon: "heart.circle.fill", color: Neon.magenta)
 
             settingsCard {
                 Button(action: { showTipJar = true }) {
                     HStack(spacing: Neon.Space.md) {
-                        Text("☕️")
-                            .font(.system(size: 24))
+                        Image(systemName: "cup.and.saucer.fill")
+                            .font(Neon.font(20, .bold))
+                            .foregroundColor(Neon.magenta)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(Neon.magenta.opacity(0.12)))
+                            .overlay(Circle().stroke(Neon.magenta.opacity(0.4), lineWidth: 1))
 
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("BUY ME A DRINK")
-                                .font(Neon.font(13, .heavy))
+                                .font(Neon.font(12, .heavy))
                                 .foregroundColor(.white)
-                                .tracking(1)
-                            Text("Support \(AppConfig.appName) development")
+                                .tracking(1.5)
+                            Text("Support SkateFit development with an optional tip.")
                                 .font(Neon.font(10, .medium))
                                 .foregroundColor(Neon.textMid)
                         }
@@ -219,14 +223,12 @@ struct SettingsView: View {
 
                         Image(systemName: "chevron.right")
                             .font(Neon.font(12, .bold))
-                            .foregroundColor(Neon.textLow)
+                            .foregroundColor(Neon.magenta)
                     }
                 }
             }
         }
     }
-
-    // MARK: - About
 
     private var aboutSection: some View {
         VStack(spacing: Neon.Space.md) {

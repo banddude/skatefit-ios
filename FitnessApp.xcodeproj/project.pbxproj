@@ -19,9 +19,11 @@
 		4B358F70A4BC4B4D8A0100BD /* WorkoutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0734034DEBD1465192878116 /* WorkoutsView.swift */; };
 		C1F2E3D4B59678870011223A /* NeonTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A2C3D4E5F606071829304B /* NeonTheme.swift */; };
 		D1A2C3D4E5F606071829304C /* NeonIconCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1B2C3D4E5F606071829304D /* NeonIconCircle.swift */; };
-		E1A2C3D4E5F606071829304C /* VideoDownloadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B2C3D4E5F606071829304D /* VideoDownloadQueue.swift */; };
-		E9A1B2C3D4E5F6071829304A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9A1B2C3D4E5F6071829304B /* PrivacyInfo.xcprivacy */; };
-		4B38ABF2A8054771BB4794BE /* SectionStyling.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECCC44F36FF423E92EA948C /* SectionStyling.swift */; };
+			E1A2C3D4E5F606071829304C /* VideoDownloadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B2C3D4E5F606071829304D /* VideoDownloadQueue.swift */; };
+			E9A1B2C3D4E5F6071829304A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9A1B2C3D4E5F6071829304B /* PrivacyInfo.xcprivacy */; };
+			F7A3B1C9D2E84A5F6B0D1E24 /* TipJarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A3B1C9D2E84A5F6B0D1E23 /* TipJarManager.swift */; };
+			B9D5E3F7A1C24B6D8E0F3A26 /* TipJarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D5E3F7A1C24B6D8E0F3A25 /* TipJarView.swift */; };
+			4B38ABF2A8054771BB4794BE /* SectionStyling.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECCC44F36FF423E92EA948C /* SectionStyling.swift */; };
 		4EBADB82C7274CFFB7AEFB63 /* DifficultyExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F40697F8A3D438B9F3F82A4 /* DifficultyExplanationView.swift */; };
 		576ADFA9C1A4436A93CA62AD /* WorkoutDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD655450262F41009B485201 /* WorkoutDetailView.swift */; };
 		5BC5BEF52CFF4D4EBB94552B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AD2C53638CC446C2916DC2C1 /* Assets.xcassets */; };
@@ -36,8 +38,6 @@
 		E17C73E02EABFBA200A79431 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17C73DF2EABFBA200A79431 /* Extensions.swift */; };
 		F2EAA049E33E4F8C8663845E /* VideoTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADC78EA01058426DBCCCC4B6 /* VideoTutorialView.swift */; };
 		F904E153E51F47CB8FBBBF60 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F1B3FF22A94DF78F49B937 /* NetworkService.swift */; };
-		A8C4D2E6F0B13A5C7D9E2F14 /* TipJarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A3B1C9D2E84A5F6B0D1E23 /* TipJarManager.swift */; };
-		C0E6F4A8B2D35C7E9F1A4B36 /* TipJarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D5E3F7A1C24B6D8E0F3A25 /* TipJarView.swift */; };
 	B8D4E2F1C5A69B7013245678 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F3B2C1D4E85A6F91023B47 /* HealthKitManager.swift */; };
 	D1F6A4B3C7E8D90245367890 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E5F3A2B6D7C80134256789 /* SettingsView.swift */; };
 	F3B8C6D5E9A0F12467589012 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2A7B5C4D8F9E01356478901 /* HealthKit.framework */; };
@@ -245,8 +245,10 @@
 				C1F2E3D4B59678870011223A /* NeonTheme.swift in Sources */,
 				D1A2C3D4E5F606071829304C /* NeonIconCircle.swift in Sources */,
 				E1A2C3D4E5F606071829304C /* VideoDownloadQueue.swift in Sources */,
-				3D62BFA5DF6B4D17B4A5D521 /* WorkoutVideoPlayerView.swift in Sources */,
-				4EBADB82C7274CFFB7AEFB63 /* DifficultyExplanationView.swift in Sources */,
+					3D62BFA5DF6B4D17B4A5D521 /* WorkoutVideoPlayerView.swift in Sources */,
+					F7A3B1C9D2E84A5F6B0D1E24 /* TipJarManager.swift in Sources */,
+					B9D5E3F7A1C24B6D8E0F3A26 /* TipJarView.swift in Sources */,
+					4EBADB82C7274CFFB7AEFB63 /* DifficultyExplanationView.swift in Sources */,
 				CEC3D0BBE3A14C61B484AB55 /* EquipmentOverviewView.swift in Sources */,
 				43893D4CB9A3423693E92A6E /* OnboardingDataModel.swift in Sources */,
 				D588FEA63F074AE786B11504 /* OnboardingGesturesView.swift in Sources */,
@@ -256,8 +258,6 @@
 				0D7E7E24FF5243C5A0B40C39 /* OnboardingView.swift in Sources */,
 				A57C295E296E49099038F746 /* OnboardingWelcomeView.swift in Sources */,
 				F2EAA049E33E4F8C8663845E /* VideoTutorialView.swift in Sources */,
-				A8C4D2E6F0B13A5C7D9E2F14 /* TipJarManager.swift in Sources */,
-				C0E6F4A8B2D35C7E9F1A4B36 /* TipJarView.swift in Sources */,
 				B8D4E2F1C5A69B7013245678 /* HealthKitManager.swift in Sources */,
 				D1F6A4B3C7E8D90245367890 /* SettingsView.swift in Sources */,
 			);
@@ -331,7 +331,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FitnessApp/FitnessApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+					CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "FitnessApp/Preview\\ Content";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -346,7 +346,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mikeshaffer.skatefit;
 				PRODUCT_NAME = skatefit;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -426,7 +426,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FitnessApp/FitnessApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+					CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "FitnessApp/Preview\\ Content";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -441,7 +441,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mikeshaffer.skatefit;
 				PRODUCT_NAME = skatefit;
 				SWIFT_EMIT_LOC_STRINGS = YES;

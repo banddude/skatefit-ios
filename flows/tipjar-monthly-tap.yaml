@@ -1,0 +1,8 @@
+appId: com.mikeshaffer.skatefit
+---
+- tapOn: "$0.99/MO"
+- extendedWaitUntil:
+    visible: ".*[Ss]ubscribe.*"
+    timeout: 8000
+    optional: true
+- takeScreenshot: .tmp/monthly-purchase
