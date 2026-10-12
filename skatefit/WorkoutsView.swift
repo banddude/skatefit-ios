@@ -354,57 +354,126 @@ extension View {
 }
 #endif
 
+// MARK: - Shared Workout Visual Language
+
+struct DifficultyBadge: View {
+    let difficulty: WorkoutDifficulty
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: difficulty.iconName)
+                .accessibilityHidden(true)
+
+            Text(difficulty.displayName)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundColor(difficulty.color)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(difficulty.color.opacity(0.12))
+        .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .stroke(difficulty.color.opacity(0.35), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Difficulty: \(difficulty.displayName)")
+    }
+}
+
+struct WorkoutIdentityIcon: View {
+    let systemName: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.title3)
+            .foregroundColor(color)
+            .frame(width: 38, height: 38)
+            .background(color.opacity(0.14))
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+            )
+            .accessibilityHidden(true)
+    }
+}
+
+struct WorkoutSectionBadge: View {
+    let section: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: WorkoutSectionVisuals.iconName(for: section))
+                .accessibilityHidden(true)
+
+            Text(section)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundColor(WorkoutSectionVisuals.color(for: section))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(Color(.tertiarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(WorkoutSectionVisuals.color(for: section).opacity(0.35), lineWidth: 1)
+        )
+        .fixedSize()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Workout section: \(section)")
+    }
+}
+
 // MARK: - Workout Difficulty Card
 struct WorkoutDifficultyCard: View {
     let workout: WorkoutContainer
-    
-    // Calculate workout stats
+
     private var exerciseCount: Int {
         workout.exercises.count
     }
-    
+
     private var estimatedDuration: String {
         let warmupCount = workout.exercises.filter { $0.section == "Warm-up" }.count
         let mainCount = workout.exercises.filter { $0.section == "Main" }.count
         let cooldownCount = workout.exercises.filter { $0.section == "Cool-down" }.count
         let totalMinutes = (warmupCount * 2) + (mainCount * 3) + (cooldownCount * 2)
-        return "\(totalMinutes-5)-\(totalMinutes+5) mins"
+        return "\(totalMinutes - 5)-\(totalMinutes + 5) mins"
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and title
             HStack {
                 HStack(spacing: 10) {
-                    Image(systemName: workout.workoutIcon)
-                        .font(.title3)
-                        .foregroundColor(workout.workoutColor)
-                    
+                    WorkoutIdentityIcon(
+                        systemName: workout.workoutIcon,
+                        color: workout.workoutColor
+                    )
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(workout.name)
                             .font(.subheadline)
                             .fontWeight(.bold)
-                        
+
                         Text("\(exerciseCount) exercises")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Duration badge
-                Text(estimatedDuration)
-                    .font(.caption2)
-                    .fontWeight(.medium)
+
+                Label(estimatedDuration, systemImage: "clock")
+                    .font(.caption2.weight(.medium))
+                    .foregroundColor(.secondary)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(workout.workoutColor.opacity(0.2))
-                    .foregroundColor(workout.workoutColor)
-                    .cornerRadius(8)
+                    .padding(.vertical, 5)
+                    .background(Color(.tertiarySystemGroupedBackground))
+                    .clipShape(Capsule())
+                    .accessibilityElement(children: .combine)
             }
-            
-            // Difficulty buttons
+
             HStack(spacing: 8) {
                 ForEach(WorkoutDifficulty.allCases, id: \.self) { difficulty in
                     NavigationLink(destination: WorkoutDetailView(
@@ -412,42 +481,32 @@ struct WorkoutDifficultyCard: View {
                         difficulty: difficulty,
                         exercises: workout.exercises
                     )) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .font(.caption2)
-                                .foregroundColor(difficulty.color)
-                            
-                            Text(difficulty.displayName)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                            
+                        VStack(spacing: 6) {
+                            DifficultyBadge(difficulty: difficulty)
+
                             Text(getDifficultyDetails(difficulty))
-                                .font(.system(size: 9))
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 9)
                         .background(Color(.tertiarySystemGroupedBackground))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(difficulty.color.opacity(0.3), lineWidth: 1)
-                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 9))
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the \(difficulty.displayName.lowercased()) workout")
                 }
             }
         }
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(workout.workoutColor.opacity(0.2), lineWidth: 1)
+                .stroke(workout.workoutColor.opacity(0.28), lineWidth: 1)
         )
     }
-    
+
     private func getDifficultyDetails(_ difficulty: WorkoutDifficulty) -> String {
         switch difficulty {
         case .beginner: return "Light"

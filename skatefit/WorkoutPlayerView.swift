@@ -2,94 +2,87 @@ import SwiftUI
 import AVFoundation
 import AVKit
 
+final class ExercisePlaybackController: ObservableObject {
+    let player: AVPlayer?
+
+    init(videoURL: URL?) {
+        player = videoURL.map { AVPlayer(url: $0) }
+    }
+
+    func restart(completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let player else { completion(false); return }
+
+        player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+            if finished { player.play() }
+            completion(finished)
+        }
+    }
+}
+
 struct WorkoutPlayerView: View {
     let workoutName: String
     let difficulty: WorkoutDifficulty
     let exercises: [WorkoutExercise]
     let startingIndex: Int
-    
-    @Environment(\.dismiss) var dismiss
+    var videoURLOverride: URL? = nil
+
+    @Environment(\.dismiss) private var dismiss
     @State private var currentExerciseIndex: Int
     @State private var showExerciseDetails = false
-    
-    init(workoutName: String, difficulty: WorkoutDifficulty, exercises: [WorkoutExercise], startingIndex: Int) {
+
+    init(workoutName: String, difficulty: WorkoutDifficulty, exercises: [WorkoutExercise], startingIndex: Int, videoURLOverride: URL? = nil) {
         self.workoutName = workoutName
         self.difficulty = difficulty
         self.exercises = exercises
         self.startingIndex = startingIndex
-        self._currentExerciseIndex = State(initialValue: startingIndex)
-        print("DEBUG: WorkoutPlayerView init with startingIndex: \(startingIndex)")
+        self.videoURLOverride = videoURLOverride
+        self.currentExerciseIndex = startingIndex
     }
-    
+
     var body: some View {
-        let _ = print("DEBUG: WorkoutPlayerView body rendering with currentExerciseIndex: \(currentExerciseIndex)")
         ZStack {
             TabView(selection: $currentExerciseIndex) {
-                ForEach(exercises.indices, id: \.self) { index in
+                ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
                     SingleExercisePageView(
-                        exercise: exercises[index],
+                        exercise: exercise,
                         difficulty: difficulty,
                         index: index,
                         total: exercises.count,
-                        showExerciseDetails: $showExerciseDetails
+                        showExerciseDetails: $showExerciseDetails,
+                        videoURLOverride: videoURLOverride
                     )
                     .tag(index)
-                    .onAppear {
-                        print("DEBUG: Page \(index) appeared")
-                    }
                 }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            .ignoresSafeArea(.all)
-            .onAppear {
-                print("DEBUG: TabView appeared, should show index: \(currentExerciseIndex)")
-            }
-            
-            // Custom navigation bar overlay
+            .ignoresSafeArea()
+
             VStack {
                 HStack {
-                    // Section badge - styled like WorkoutsView difficulty buttons
-                    if currentExerciseIndex < exercises.count {
-                        HStack(spacing: 4) {
-                            Image(systemName: getSectionIcon(exercises[currentExerciseIndex].section))
-                                .font(.caption2)
-                                .foregroundColor(sectionColor(exercises[currentExerciseIndex].section))
-                            
-                            Text(exercises[currentExerciseIndex].section)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemGroupedBackground))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(sectionColor(exercises[currentExerciseIndex].section).opacity(0.3), lineWidth: 1)
-                        )
-                        .fixedSize()
+                    if exercises.indices.contains(currentExerciseIndex) {
+                        sectionBadge(for: exercises[currentExerciseIndex].section)
                     }
-                    
+
                     Spacer()
-                    
-                    // Workout title
+
                     Text(workoutName)
                         .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
-                    
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
                     Spacer()
-                    
-                    // Done button
+
                     Button("Done") {
                         dismiss()
                     }
                     .font(.body)
                     .foregroundColor(.white)
+                    .accessibilityHint("Closes the workout player")
                 }
                 .padding(.horizontal)
-                .padding(.top, 50) // Account for status bar
+                .padding(.top, 50)
                 .padding(.bottom, 10)
                 .background(
                     LinearGradient(
@@ -98,125 +91,142 @@ struct WorkoutPlayerView: View {
                         endPoint: .bottom
                     )
                 )
-                
+
                 Spacer()
             }
-            
-            // Exercise Details Overlay
-            if showExerciseDetails && currentExerciseIndex < exercises.count {
+
+            if showExerciseDetails && exercises.indices.contains(currentExerciseIndex) {
                 exerciseDetailsOverlay(for: exercises[currentExerciseIndex])
             }
         }
-        .gesture(
-            DragGesture()
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
                 .onEnded { value in
-                    // If dragged down more than 100 points, dismiss
-                    if value.translation.height > 100 {
+                    let verticalDistance = value.translation.height
+                    let horizontalDistance = abs(value.translation.width)
+                    if verticalDistance > 100 && verticalDistance > horizontalDistance * 1.2 {
                         dismiss()
                     }
                 }
         )
     }
-    
-    // MARK: - Exercise Details Overlay
+
+    private func sectionBadge(for section: String) -> some View {
+        Label(section, systemImage: getSectionIcon(section))
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .foregroundColor(.white)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(sectionColor(section).opacity(0.9))
+            .clipShape(Capsule())
+            .fixedSize()
+            .accessibilityLabel("Section: \(section)")
+    }
+
     private func exerciseDetailsOverlay(for exercise: WorkoutExercise) -> some View {
         ZStack {
-            // Semi-transparent background
             Color.black.opacity(0.8)
-                .ignoresSafeArea(.all)
+                .ignoresSafeArea()
                 .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
                         showExerciseDetails = false
                     }
                 }
-            
-            // Details card
-            VStack(spacing: 20) {
-                // Header
-                HStack {
+
+            VStack(spacing: 18) {
+                HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(exercise.section)
+                        Label(exercise.section, systemImage: getSectionIcon(exercise.section))
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .fontWeight(.medium)
-                        
+                            .fontWeight(.semibold)
+                            .foregroundColor(sectionColor(exercise.section))
+
                         Text(exercise.move)
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
                     }
-                    
+
                     Spacer()
-                    
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
                             showExerciseDetails = false
                         }
-                    }) {
+                    } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title2)
                             .foregroundColor(.secondary)
                     }
+                    .accessibilityLabel("Close exercise details")
                 }
-                .padding(.bottom, 10)
-                
+
                 Divider()
-                
-                // Exercise details content
+
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Brief Description
+                    VStack(alignment: .leading, spacing: 22) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Overview")
                                 .font(.headline)
-                                .foregroundColor(.primary)
-                            
+
                             Text(exercise.description)
                                 .font(.body)
                                 .foregroundColor(.secondary)
+                                .lineSpacing(4)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        
-                        // Detailed Description (if available)
-                        if let detailedDescription = exercise.detailedDescription, !detailedDescription.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
+
+                        if !exercise.detailedGuideSegments.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
                                 Text("Detailed Guide")
                                     .font(.headline)
-                                    .foregroundColor(.primary)
-                                
-                                Text(detailedDescription)
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
-                                    .background(Color(UIColor.secondarySystemBackground))
-                                    .cornerRadius(10)
+
+                                VStack(alignment: .leading, spacing: 12) {
+                                    ForEach(Array(exercise.detailedGuideSegments.enumerated()), id: \.offset) { index, paragraph in
+                                        Label(paragraph, systemImage: "circle.small.fill")
+                                            .font(.body)
+                                            .foregroundColor(.secondary)
+                                            .lineSpacing(4)
+                                            .fixedSize(horizontal: false, vertical: true)
+
+                                        if index < exercise.detailedGuideSegments.count - 1 {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                                .padding(14)
+                                .background(Color(UIColor.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
                         }
-                        
-                        // Instructions for current difficulty
+
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Instructions (\(difficulty.displayName))")
+                            Text("Instructions")
                                 .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            HStack {
-                                Image(systemName: "figure.strengthtraining.traditional")
+
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: difficulty.iconName)
                                     .font(.body)
                                     .foregroundColor(difficulty.color)
-                                
-                                Text(exercise.instructions(for: difficulty))
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    .accessibilityHidden(true)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(difficulty.displayName)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(difficulty.color)
+
+                                    Text(exercise.instructions(for: difficulty))
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                        .lineSpacing(3)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(difficulty.color.opacity(0.1))
-                            .cornerRadius(8)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding(24)
@@ -226,19 +236,20 @@ struct WorkoutPlayerView: View {
                     .shadow(color: .black.opacity(0.3), radius: 20)
             )
             .padding(20)
+            .accessibilityIdentifier("exercise-details-overlay")
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
     }
-    
+
     private func sectionColor(_ section: String) -> Color {
         switch section {
         case "Warm-up": return .orange
-        case "Main": return .purple
+        case "Main": return .pink
         case "Cool-down": return .teal
         default: return .gray
         }
     }
-    
+
     private func getSectionIcon(_ section: String) -> String {
         switch section {
         case "Warm-up": return "thermometer.low"
@@ -249,58 +260,60 @@ struct WorkoutPlayerView: View {
     }
 }
 
-// Simplified version of SingleExercisePlayerView for embedding
 struct SingleExercisePageView: View {
     let exercise: WorkoutExercise
     let difficulty: WorkoutDifficulty
     let index: Int
     let total: Int
+
     @Binding var showExerciseDetails: Bool
-    
+    @StateObject private var playbackController: ExercisePlaybackController
+
+    init(
+        exercise: WorkoutExercise,
+        difficulty: WorkoutDifficulty,
+        index: Int,
+        total: Int,
+        showExerciseDetails: Binding<Bool>,
+        videoURLOverride: URL? = nil
+    ) {
+        self.exercise = exercise
+        self.difficulty = difficulty
+        self.index = index
+        self.total = total
+        self._showExerciseDetails = showExerciseDetails
+        self._playbackController = StateObject(wrappedValue: ExercisePlaybackController(videoURL: videoURLOverride ?? exercise.getVideoURL()))
+    }
+
     var body: some View {
         ZStack {
-            // Full screen background video using custom player that properly fills
             GeometryReader { geometry in
-                if let videoURL = exercise.getVideoURL() {
-                    WorkoutVideoPlayerView(player: AVPlayer(url: videoURL))
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                        .onLongPressGesture(minimumDuration: 0.5) {
-                            print("🎯 Long press detected directly on video!")
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showExerciseDetails.toggle()
-                            }
-                            print("📋 Exercise details now: \(showExerciseDetails)")
-                        }
-                } else {
-                    Color.black
-                        .onLongPressGesture(minimumDuration: 0.5) {
-                            print("🎯 Long press detected on black placeholder!")
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showExerciseDetails.toggle()
-                            }
-                            print("📋 Exercise details now: \(showExerciseDetails)")
-                        }
-                }
+                WorkoutVideoPlayerView(player: playbackController.player, onLongPress: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showExerciseDetails = true
+                    }
+                })
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .accessibilityIdentifier("exercise-video-\(index)")
+                .accessibilityHint("Long press for exercise details")
             }
-            .ignoresSafeArea(.all)
-            
-            // UI overlay that respects safe areas
+            .ignoresSafeArea()
+
             VStack {
-                // Top UI with gradient background
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Exercise \(index + 1) of \(total)")
                             .font(.subheadline)
                             .foregroundColor(.white)
                             .fontWeight(.medium)
+
                         Spacer()
                     }
-                    
-                    ProgressView(value: Double(index + 1) / Double(total))
+
+                    ProgressView(value: Double(index + 1) / Double(max(total, 1)))
                         .tint(.white)
                         .scaleEffect(y: 2)
-                    
+
                     Text(exercise.move)
                         .font(.title2)
                         .fontWeight(.bold)
@@ -308,9 +321,33 @@ struct SingleExercisePageView: View {
                         .multilineTextAlignment(.center)
                         .shadow(color: .black, radius: 2)
                         .padding(.top, 8)
+                        .accessibilityIdentifier("exercise-title-\(index)")
+
+                    if playbackController.player != nil {
+                        HStack {
+                            Spacer()
+
+                            Button {
+                                playbackController.restart()
+                            } label: {
+                                Label("Replay", systemImage: "arrow.counterclockwise")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.black.opacity(0.55))
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("replay-video-button")
+                            .accessibilityLabel("Replay exercise video")
+                            .accessibilityHint("Restarts the current exercise video from the beginning")
+                        }
+                    }
                 }
                 .padding(.horizontal)
-                .padding(.top, 80) // Extra padding for safe area and nav bar
+                .padding(.top, 80)
                 .background(
                     LinearGradient(
                         gradient: Gradient(colors: [Color.black.opacity(0.6), Color.clear]),
@@ -318,11 +355,10 @@ struct SingleExercisePageView: View {
                         endPoint: .bottom
                     )
                 )
-                
+
                 Spacer()
-                
-                // Bottom UI
-                VStack(spacing: 20) {
+
+                VStack(spacing: 18) {
                     Text(exercise.description)
                         .font(.body)
                         .foregroundColor(.white)
@@ -330,49 +366,53 @@ struct SingleExercisePageView: View {
                         .padding(.horizontal, 30)
                         .shadow(color: .black, radius: 2)
                         .fixedSize(horizontal: false, vertical: true)
-                    
-                    VStack(spacing: 4) {
-                        Text(exercise.instructions(for: difficulty))
+
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "info.circle.fill")
                             .font(.body)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.white.opacity(0.9))
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Image(systemName: difficulty.iconName)
+                                    .font(.caption)
+                                    .accessibilityHidden(true)
+
+                                Text("\(difficulty.displayName) target")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white.opacity(0.9))
+
+                            Text(exercise.instructions(for: difficulty))
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color(.tertiarySystemGroupedBackground))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(difficulty.color.opacity(0.3), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 4)
+                    .padding(.horizontal, 30)
+                    .accessibilityIdentifier("exercise-target-information")
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(difficulty.displayName) target: \(exercise.instructions(for: difficulty))")
                 }
-                .padding(.bottom, 50) // Extra padding for safe area
+                .padding(.bottom, 50)
                 .frame(maxWidth: .infinity)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.2), Color.black.opacity(0.75)]),
+                        gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.2), Color.black.opacity(0.78)]),
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             }
-            
-            
         }
     }
-    
-    private func getWorkoutColor(_ workoutName: String) -> Color {
-        switch workoutName {
-        case "Full Body Workout": return .blue
-        case "Mobility & Activation": return .orange
-        case "Strength": return .purple
-        case "Core & Stability": return .teal
-        default: return .gray
-        }
-    }
+
+
 }
 
 #Preview {

@@ -4,64 +4,110 @@ import AVKit
 
 struct WorkoutVideoPlayerView: UIViewRepresentable {
     let player: AVPlayer?
-    
+    var onLongPress: () -> Void = {}
+
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
         view.backgroundColor = .black
-        
-        guard let player = player else { return view }
-        
+
         let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspectFill // This ensures full screen coverage
+        playerLayer.videoGravity = .resizeAspectFill
         playerLayer.frame = view.bounds
-        playerLayer.needsDisplayOnBoundsChange = true // Prevent scaling animations
+        playerLayer.needsDisplayOnBoundsChange = true
         view.layer.addSublayer(playerLayer)
-        
-        // Store reference to player layer for updates
+
         context.coordinator.playerLayer = playerLayer
-        
-        // Configure audio session to allow background music
+        context.coordinator.attach(to: player)
+        context.coordinator.onLongPress = onLongPress
+        let gesture = UILongPressGestureRecognizer(
+            target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:))
+        )
+        gesture.minimumPressDuration = 0.5
+        gesture.allowableMovement = 12
+        gesture.cancelsTouchesInView = false
+        gesture.delegate = context.coordinator
+        view.addGestureRecognizer(gesture)
+
         configureAudioSession()
-        
-        // Configure for smooth gif-like playback
-        player.isMuted = true // Silent for gif-like experience
-        player.automaticallyWaitsToMinimizeStalling = false
-        
-        // Start playing and setup seamless looping
-        player.play()
-        
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: player.currentItem,
-            queue: .main
-        ) { _ in
-            player.seek(to: .zero)
-            player.play()
-        }
-        
         return view
     }
-    
+
     func updateUIView(_ uiView: UIView, context: Context) {
-        // Update player layer frame when view bounds change
+        context.coordinator.onLongPress = onLongPress
+        if context.coordinator.player !== player {
+            context.coordinator.attach(to: player)
+        }
+
         if let playerLayer = context.coordinator.playerLayer {
             DispatchQueue.main.async {
                 playerLayer.frame = uiView.bounds
             }
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
-    
-    class Coordinator {
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var playerLayer: AVPlayerLayer?
+        weak var player: AVPlayer?
+        var onLongPress: () -> Void = {}
+        private var endObserver: NSObjectProtocol?
+
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            // UIKit enters began after the threshold, before the finger lifts.
+            handleLongPressState(gesture.state)
+        }
+
+        func handleLongPressState(_ state: UIGestureRecognizer.State) {
+            if state == .began { onLongPress() }
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+
+        func attach(to newPlayer: AVPlayer?) {
+            guard player !== newPlayer else { return }
+
+            if let endObserver {
+                NotificationCenter.default.removeObserver(endObserver)
+                self.endObserver = nil
+            }
+
+            player = newPlayer
+            playerLayer?.player = newPlayer
+
+            guard let newPlayer else { return }
+
+            newPlayer.isMuted = true
+            newPlayer.automaticallyWaitsToMinimizeStalling = false
+            newPlayer.play()
+
+            endObserver = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: newPlayer.currentItem,
+                queue: .main
+            ) { [weak newPlayer] _ in
+                newPlayer?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                    newPlayer?.play()
+                }
+            }
+        }
+
+        deinit {
+            if let endObserver {
+                NotificationCenter.default.removeObserver(endObserver)
+            }
+        }
     }
-    
+
     private func configureAudioSession() {
         do {
-            // Set audio session category to allow mixing with other audio
             try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {

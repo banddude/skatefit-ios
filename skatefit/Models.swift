@@ -111,12 +111,29 @@ enum WorkoutDifficulty: String, CaseIterable {
         case .advanced: return "Advanced"
         }
     }
+
+    var iconName: String {
+        switch self {
+        case .beginner: return "1.circle.fill"
+        case .intermediate: return "2.circle.fill"
+        case .advanced: return "3.circle.fill"
+        }
+    }
+
+    var colorName: String {
+        switch self {
+        case .beginner: return "mint"
+        case .intermediate: return "blue"
+        case .advanced: return "purple"
+        }
+    }
     
     var color: Color {
-        switch self {
-        case .beginner: return .mint
-        case .intermediate: return .blue
-        case .advanced: return .purple
+        switch colorName {
+        case "mint": return .mint
+        case "blue": return .blue
+        case "purple": return .purple
+        default: return .gray
         }
     }
 }
@@ -161,6 +178,34 @@ struct WorkoutExercise: Identifiable, Codable {
     var videoFileName: String {
         return videoFile ?? jsonFile.replacingOccurrences(of: ".json", with: "")
     }
+
+    var detailedGuideSegments: [String] {
+        ExerciseGuideFormatter.segments(from: detailedDescription ?? "")
+    }
+}
+
+enum ExerciseGuideFormatter {
+    static func segments(from text: String) -> [String] {
+        let paragraphs = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return paragraphs.flatMap { paragraph in
+            var sentences: [String] = []
+            paragraph.enumerateSubstrings(
+                in: paragraph.startIndex..<paragraph.endIndex,
+                options: .bySentences
+            ) { substring, _, _, _ in
+                guard let sentence = substring?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !sentence.isEmpty else { return }
+                sentences.append(sentence)
+            }
+
+            return sentences.isEmpty ? [paragraph] : sentences
+        }
+    }
 }
 
 // MARK: - Workout Container Model
@@ -180,17 +225,58 @@ struct WorkoutContainer: Identifiable, Codable {
         return icon ?? "figure.run"
     }
     
-    var workoutColor: Color {
+    var categoryColorName: String {
         switch color?.lowercased() {
-        case "blue": return .blue
+        case "blue": return "cyan"
+        case "orange": return "orange"
+        case "purple": return "pink"
+        case "teal": return "teal"
+        case "green": return "green"
+        case "red": return "red"
+        case "yellow": return "yellow"
+        case "pink": return "pink"
+        default: return "gray"
+        }
+    }
+
+    var workoutColor: Color {
+        switch categoryColorName {
+        case "cyan": return .cyan
         case "orange": return .orange
-        case "purple": return .purple
+        case "pink": return .pink
         case "teal": return .teal
         case "green": return .green
         case "red": return .red
         case "yellow": return .yellow
+        default: return .gray
+        }
+    }
+}
+
+enum WorkoutSectionVisuals {
+    static func iconName(for section: String) -> String {
+        switch section {
+        case "Warm-up": return "thermometer.low"
+        case "Main": return "figure.strengthtraining.traditional"
+        case "Cool-down": return "leaf"
+        default: return "circle"
+        }
+    }
+
+    static func colorName(for section: String) -> String {
+        switch section {
+        case "Warm-up": return "orange"
+        case "Main": return "pink"
+        case "Cool-down": return "teal"
+        default: return "gray"
+        }
+    }
+
+    static func color(for section: String) -> Color {
+        switch colorName(for: section) {
+        case "orange": return .orange
         case "pink": return .pink
-        case "gray": return .gray
+        case "teal": return .teal
         default: return .gray
         }
     }
