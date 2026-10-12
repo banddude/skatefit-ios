@@ -18,7 +18,7 @@ struct skatefitApp: App {
     var body: some Scene {
         WindowGroup {
 #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-UITestExercisePlayer") {
+            if ProcessInfo.processInfo.arguments.contains("-UITestExercisePlayer") || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
                 WorkoutPlayerView(
                     workoutName: "UI Test Workout",
                     difficulty: .intermediate,

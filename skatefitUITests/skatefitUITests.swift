@@ -28,17 +28,22 @@ final class skatefitUITests: XCTestCase {
         replay.tap()
         XCTAssertTrue(firstTitle.exists)
         XCTAssertFalse(app.buttons["30 seconds"].exists)
+        let playerCapture = XCTAttachment(screenshot: app.screenshot())
+        playerCapture.name = "Synthetic player and informational target"
+        playerCapture.lifetime = .keepAlways
+        add(playerCapture)
 
         let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         center.press(forDuration: 0.7)
 
-        let details = app.otherElements["exercise-details-overlay"]
+        let details = app.scrollViews["exercise-details-overlay"]
         XCTAssertTrue(details.waitForExistence(timeout: 2))
 
         XCTAssertTrue(app.staticTexts["Overview"].exists)
         XCTAssertTrue(app.staticTexts["Detailed Guide"].exists)
         XCTAssertTrue(app.staticTexts["First detail sentence."].exists)
         let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Formatted exercise guide"
         attachment.lifetime = .keepAlways
         add(attachment)
 
@@ -57,7 +62,9 @@ final class skatefitUITests: XCTestCase {
     func testLaunchPerformance() throws {
         if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
             measure(metrics: [XCTApplicationLaunchMetric()]) {
-                XCUIApplication().launch()
+                let app = XCUIApplication()
+                app.launchArguments.append("-UITestExercisePlayer")
+                app.launch()
             }
         }
     }
